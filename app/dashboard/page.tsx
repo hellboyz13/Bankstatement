@@ -142,7 +142,7 @@ export default function DashboardPage() {
   };
 
   const handleExportCSV = () => {
-    const isFiltered = !!(filters.startDate || filters.endDate || filters.category !== 'all');
+    const isFiltered = filters.startDate !== '' || filters.endDate !== '' || filters.category !== 'all';
     const statementName = selectedStatementId === 'all'
       ? 'all'
       : statements.find((s) => s.id === selectedStatementId)?.file_name || 'statement';
