@@ -57,7 +57,25 @@ export async function POST(request: NextRequest) {
 
     if (parsedStatement.transactions.length === 0) {
       return NextResponse.json(
-        { error: 'No transactions found in PDF' },
+        {
+          error: '⚠️ This doesn\'t appear to be a bank statement. Please check your file.',
+          details: 'No transactions found in the PDF. Make sure you\'re uploading a valid bank statement with transaction data.',
+        },
+        { status: 422 }
+      );
+    }
+
+    // Additional validation: Check if the statement has reasonable data
+    // A valid bank statement should have dates and amounts
+    const hasDateData = parsedStatement.transactions.some((t) => t.date);
+    const hasAmountData = parsedStatement.transactions.some((t) => t.amount);
+
+    if (!hasDateData || !hasAmountData) {
+      return NextResponse.json(
+        {
+          error: '⚠️ This doesn\'t appear to be a bank statement. Please check your file.',
+          details: 'The PDF doesn\'t contain expected transaction data (dates and amounts). Please upload a valid bank statement.',
+        },
         { status: 422 }
       );
     }
