@@ -3,13 +3,113 @@
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { useEffect, useState } from 'react';
+
+interface Session {
+  id: string;
+  filename: string;
+  upload_date: string;
+  modified_date: string;
+  transaction_count: number;
+  statement_start_date: string | null;
+  statement_end_date: string | null;
+}
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   if (!user) {
     return null;
   }
+
+  useEffect(() => {
+    if (user.plan === 'premium') {
+      fetchSessions();
+    }
+  }, [user.id, user.plan]);
+
+  const fetchSessions = async () => {
+    setLoadingSessions(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/sessions/list?userId=${user.id}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setSessions(data.sessions || []);
+      } else {
+        setError(data.error || 'Failed to fetch sessions');
+      }
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
+      setError('Failed to fetch sessions');
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const handleRenameSession = async (sessionId: string) => {
+    if (!newName.trim()) {
+      setError('Session name cannot be empty');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/sessions/rename', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          newFilename: newName,
+          userId: user.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSessions(sessions.map((s) => (s.id === sessionId ? { ...s, filename: newName } : s)));
+        setRenamingId(null);
+        setNewName('');
+      } else {
+        setError(data.error || 'Failed to rename session');
+      }
+    } catch (err) {
+      console.error('Error renaming session:', err);
+      setError('Failed to rename session');
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!confirm('Are you sure you want to delete this session? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/sessions/delete?sessionId=${sessionId}&userId=${user.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSessions(sessions.filter((s) => s.id !== sessionId));
+      } else {
+        setError(data.error || 'Failed to delete session');
+      }
+    } catch (err) {
+      console.error('Error deleting session:', err);
+      setError('Failed to delete session');
+    }
+  };
 
   const createdDate = new Date(user.createdAt);
   const planBadgeColor = user.plan === 'premium' ? 'bg-gold-100 text-gold-800' : 'bg-blue-100 text-blue-800';
@@ -118,6 +218,109 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Session History - Premium Only */}
+        {user.plan === 'premium' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 mb-8">
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-black dark:text-white mb-4">📁 Statement Sessions</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                View and manage your saved statement sessions. You can store up to 12 sessions per year.
+              </p>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-200 text-sm">
+                  {error}
+                </div>
+              )}
+
+              {loadingSessions ? (
+                <div className="flex items-center text-blue-600 dark:text-blue-400">
+                  <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Loading sessions...
+                </div>
+              ) : sessions.length === 0 ? (
+                <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    No saved sessions yet. Upload a statement and click "Save Session" to get started!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sessions.map((session) => (
+                    <div key={session.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 flex items-center justify-between">
+                      <div className="flex-1">
+                        {renamingId === session.id ? (
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newName}
+                              onChange={(e) => setNewName(e.target.value)}
+                              placeholder="New session name"
+                              className="flex-1 px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleRenameSession(session.id)}
+                              className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setRenamingId(null)}
+                              className="px-3 py-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-white rounded-md hover:bg-gray-400 dark:hover:bg-gray-500 text-sm font-medium"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <h4 className="font-semibold text-gray-900 dark:text-white">{session.filename}</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              📊 {session.transaction_count} transactions
+                              {session.statement_start_date && session.statement_end_date && (
+                                <span> • {format(new Date(session.statement_start_date), 'MMM d')} to {format(new Date(session.statement_end_date), 'MMM d, yyyy')}</span>
+                              )}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                              Uploaded: {format(new Date(session.upload_date), 'PPP p')}
+                              {session.modified_date !== session.upload_date && (
+                                <span> • Last modified: {format(new Date(session.modified_date), 'PPP p')}</span>
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {renamingId !== session.id && (
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => {
+                              setRenamingId(session.id);
+                              setNewName(session.filename);
+                            }}
+                            className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 rounded-md hover:bg-blue-200 dark:hover:bg-blue-900/50 text-sm font-medium transition-colors"
+                          >
+                            ✏️ Rename
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSession(session.id)}
+                            className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-200 rounded-md hover:bg-red-200 dark:hover:bg-red-900/50 text-sm font-medium transition-colors"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-4">
