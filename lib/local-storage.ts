@@ -27,8 +27,8 @@ interface StoredStatement {
 
 // Declare global type
 declare global {
-  var localTransactions: StoredTransaction[] | undefined;
-  var localStatements: StoredStatement[] | undefined;
+  var localTransactions: any[] | undefined;
+  var localStatements: any[] | undefined;
 }
 
 // Initialize if not exists

@@ -128,7 +128,6 @@ export default function AnalyticsCharts({
                   label={({ name, percent }) =>
                     `${name}: ${(percent * 100).toFixed(0)}%`
                   }
-                  labelStyle={{ fill: '#9ca3af', fontSize: 12 }}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
