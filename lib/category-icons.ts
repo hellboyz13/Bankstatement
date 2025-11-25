@@ -1,0 +1,95 @@
+export type CategoryIcon = {
+  emoji: string;
+  label: string;
+};
+
+export const categoryIcons: Record<string, CategoryIcon> = {
+  'Food & Dining': {
+    emoji: '🍔',
+    label: 'Food',
+  },
+  'Transport': {
+    emoji: '🚌',
+    label: 'Transport',
+  },
+  'Shopping': {
+    emoji: '🛍️',
+    label: 'Shopping',
+  },
+  'Entertainment': {
+    emoji: '🎬',
+    label: 'Entertainment',
+  },
+  'Bills & Utilities': {
+    emoji: '💡',
+    label: 'Bills',
+  },
+  'Health & Medical': {
+    emoji: '⚕️',
+    label: 'Health',
+  },
+  'Travel & Accommodation': {
+    emoji: '✈️',
+    label: 'Travel',
+  },
+  'Education': {
+    emoji: '📚',
+    label: 'Education',
+  },
+  'Fitness & Wellness': {
+    emoji: '💪',
+    label: 'Fitness',
+  },
+  'Groceries': {
+    emoji: '🛒',
+    label: 'Groceries',
+  },
+  'Insurance': {
+    emoji: '🛡️',
+    label: 'Insurance',
+  },
+  'Subscriptions': {
+    emoji: '📺',
+    label: 'Subscriptions',
+  },
+  'Gifts & Donations': {
+    emoji: '🎁',
+    label: 'Gifts',
+  },
+  'Personal Care': {
+    emoji: '💇',
+    label: 'Personal Care',
+  },
+  'Dining & Restaurants': {
+    emoji: '🍽️',
+    label: 'Dining',
+  },
+  'Coffee & Tea': {
+    emoji: '☕',
+    label: 'Coffee',
+  },
+  'Fast Food': {
+    emoji: '🍟',
+    label: 'Fast Food',
+  },
+  'Rent & Mortgage': {
+    emoji: '🏠',
+    label: 'Rent',
+  },
+  'Utilities': {
+    emoji: '💧',
+    label: 'Utilities',
+  },
+  'Internet & Phone': {
+    emoji: '📱',
+    label: 'Internet',
+  },
+  'Miscellaneous': {
+    emoji: '📌',
+    label: 'Other',
+  },
+};
+
+export function getCategoryIcon(category: string): CategoryIcon {
+  return categoryIcons[category] || categoryIcons['Miscellaneous'];
+}
