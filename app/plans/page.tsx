@@ -140,7 +140,7 @@ export default function PlansPage() {
             <div className="p-8">
               {/* Price */}
               <div className="mb-8">
-                <p className="text-4xl font-bold text-gray-900 dark:text-white">$9.99</p>
+                <p className="text-4xl font-bold text-gray-900 dark:text-white">$4.99</p>
                 <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">per month</p>
               </div>
 

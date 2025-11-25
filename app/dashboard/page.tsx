@@ -160,7 +160,7 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8 animate-fadeIn">
-          <h1 className="text-3xl font-bold text-black dark:text-black smooth-transition">
+          <h1 className="text-3xl font-bold text-black dark:text-white smooth-transition">
             Bank Statement Analyzer
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2 smooth-transition">
