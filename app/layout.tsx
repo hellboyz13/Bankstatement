@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
-import GlobalThemeToggle from "@/components/GlobalThemeToggle";
+import Header from "@/components/Header";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -39,7 +39,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <AuthProvider>
-            <GlobalThemeToggle />
+            <Header />
             {children}
           </AuthProvider>
         </ThemeProvider>
