@@ -105,18 +105,8 @@ export default function DashboardPage() {
     }
   }, [filters, selectedStatementId]);
 
-  useEffect(() => {
-    const clearData = async () => {
-      try {
-        await fetch('/api/clear-local', { method: 'POST' });
-        console.log('🔄 Page refreshed - data cleared');
-      } catch (error) {
-        console.error('Failed to clear data:', error);
-      }
-    };
-
-    clearData();
-  }, []);
+  // Note: Removed automatic clear-local on mount to preserve uploaded statement data
+  // Users can manually clear data if needed
 
   useEffect(() => {
     fetchStatements();
