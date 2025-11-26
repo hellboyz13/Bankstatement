@@ -41,6 +41,25 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
   // Don't fetch from server on mount - server storage is unreliable in dev mode
   // Statements will be added directly from upload responses
 
+  const handleRemoveStatement = (statementId: string) => {
+    setStatements(prev => prev.filter(stmt => stmt.id !== statementId));
+    // If we removed the selected statement, switch to 'all'
+    if (selectedStatementId === statementId) {
+      setSelectedStatementId('all');
+      onStatementSelect?.('all');
+    }
+  };
+
+  const handleClearAllStatements = () => {
+    setStatements([]);
+    setSelectedStatementId('all');
+    setUploadedData(null);
+    setSessionName('');
+    setSuccess(null);
+    setError(null);
+    onStatementSelect?.('all');
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -203,25 +222,39 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">📂 Your Uploaded Statements ({statements.length})</h3>
             <div className="flex flex-wrap gap-2">
               {statements.map((stmt) => (
-                <button
+                <div
                   key={stmt.id}
-                  onClick={() => {
-                    setSelectedStatementId(stmt.id);
-                    onStatementSelect?.(stmt.id);
-                  }}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                  className={`flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${
                     selectedStatementId === stmt.id
                       ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-500'
+                      : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-500'
                   }`}
                 >
-                  <span className="flex items-center gap-1">
-                    📄 {stmt.file_name.replace(/\.pdf$/i, '')}
-                    <span className="ml-1 px-1.5 py-0.5 bg-black bg-opacity-20 rounded text-xs">
-                      {stmt.transaction_count}
+                  <button
+                    onClick={() => {
+                      setSelectedStatementId(stmt.id);
+                      onStatementSelect?.(stmt.id);
+                    }}
+                    className="flex items-center gap-1 flex-1 min-w-0"
+                  >
+                    <span className="flex items-center gap-1">
+                      📄 {stmt.file_name.replace(/\.pdf$/i, '')}
+                      <span className="ml-1 px-1.5 py-0.5 bg-black bg-opacity-20 rounded text-xs">
+                        {stmt.transaction_count}
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveStatement(stmt.id);
+                    }}
+                    className="ml-2 p-1 hover:bg-red-500 hover:text-white rounded transition-colors"
+                    title="Remove this file"
+                  >
+                    ✕
+                  </button>
+                </div>
               ))}
               <button
                 onClick={() => {
@@ -235,6 +268,14 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
                 }`}
               >
                 📊 Combine All
+              </button>
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-600">
+              <button
+                onClick={handleClearAllStatements}
+                className="w-full px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-200 rounded-md hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors font-medium text-sm"
+              >
+                🗑️ Clear All Files
               </button>
             </div>
           </div>
