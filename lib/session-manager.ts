@@ -21,13 +21,17 @@ export async function createSession(
 ): Promise<Session | null> {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase configuration');
       throw new Error('Missing Supabase configuration');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Use service role key to bypass RLS for server-side operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    console.log('Creating session for user:', userId, 'filename:', filename);
 
     const { data, error } = await supabase
       .from('sessions')
@@ -45,10 +49,11 @@ export async function createSession(
       .single();
 
     if (error) {
-      console.error('Error creating session:', error);
+      console.error('Supabase error creating session:', error);
       return null;
     }
 
+    console.log('Session created successfully:', data);
     return data as Session;
   } catch (error) {
     console.error('Error in createSession:', error);
