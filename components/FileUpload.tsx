@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 interface FileUploadProps {
   onUploadSuccess: () => void;
   canUpload?: boolean;
   isFreeUser?: boolean;
+  onStatementSelect?: (statementId: string | 'all') => void;
 }
 
 interface UploadedData {
@@ -16,7 +17,17 @@ interface UploadedData {
   endDate: string | null;
 }
 
-export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUser = false }: FileUploadProps) {
+interface Statement {
+  id: string;
+  bank_name: string | null;
+  file_name: string;
+  uploaded_at: string;
+  start_date: string | null;
+  end_date: string | null;
+  transaction_count: number;
+}
+
+export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUser = false, onStatementSelect }: FileUploadProps) {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -24,6 +35,22 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
   const [success, setSuccess] = useState<string | null>(null);
   const [uploadedData, setUploadedData] = useState<UploadedData | null>(null);
   const [sessionName, setSessionName] = useState('');
+  const [statements, setStatements] = useState<Statement[]>([]);
+  const [selectedStatementId, setSelectedStatementId] = useState<string | 'all'>('all');
+
+  useEffect(() => {
+    fetchStatements();
+  }, []);
+
+  const fetchStatements = async () => {
+    try {
+      const res = await fetch('/api/statements-local');
+      const data = await res.json();
+      setStatements(data.statements || []);
+    } catch (error) {
+      console.error('Failed to fetch statements:', error);
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -82,6 +109,9 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
       }
 
       onUploadSuccess();
+
+      // Refresh statements list
+      await fetchStatements();
 
       // Reset form
       e.target.value = '';
@@ -199,6 +229,49 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         {success && (
           <div className="p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md text-green-700 dark:text-green-200 text-sm animate-slideInDown">
             {success}
+          </div>
+        )}
+
+        {/* Statement Navigation Tabs */}
+        {statements.length > 0 && (
+          <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Uploaded Statements</h3>
+            <div className="flex flex-wrap gap-2">
+              {statements.map((stmt) => (
+                <button
+                  key={stmt.id}
+                  onClick={() => {
+                    setSelectedStatementId(stmt.id);
+                    onStatementSelect?.(stmt.id);
+                  }}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                    selectedStatementId === stmt.id
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-500'
+                  }`}
+                >
+                  <span className="flex items-center gap-1">
+                    📄 {stmt.file_name.replace(/\.pdf$/i, '')}
+                    <span className="ml-1 px-1.5 py-0.5 bg-black bg-opacity-20 rounded text-xs">
+                      {stmt.transaction_count}
+                    </span>
+                  </span>
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setSelectedStatementId('all');
+                  onStatementSelect?.('all');
+                }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  selectedStatementId === 'all'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg'
+                    : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-500'
+                }`}
+              >
+                📊 Combine All
+              </button>
+            </div>
           </div>
         )}
 

@@ -186,6 +186,7 @@ export default function DashboardPage() {
               onUploadSuccess={handleUploadSuccess}
               canUpload={canUpload}
               isFreeUser={user?.plan === 'free'}
+              onStatementSelect={(id) => setSelectedStatementId(id)}
             />
           </div>
         ) : (
