@@ -4,6 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
+import HomeButton from '@/components/HomeButton';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function PlansLayout({
   children,
@@ -42,6 +44,8 @@ export default function PlansLayout({
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <HomeButton />
+      <ThemeToggle />
       <DashboardHeader />
       {children}
     </div>

@@ -2,13 +2,11 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function DashboardHeader() {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -20,33 +18,13 @@ export default function DashboardHeader() {
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm animate-slideInDown">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        {/* Left side: Home button and title */}
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 smooth-transition hover-lift transition-colors"
-            title="Go to Dashboard"
-            aria-label="Home"
-          >
-            🏠
-          </Link>
+        {/* Left side: Title */}
+        <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-black dark:text-white smooth-transition">Bank Statement Analyzer</h1>
         </div>
 
-        {/* Right side: Theme toggle and user menu */}
+        {/* Right side: User menu */}
         <div className="flex items-center gap-4">
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 smooth-transition hover-lift transition-colors"
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          >
-            <span className="text-xl">
-              {theme === 'light' ? '🌙' : '☀️'}
-            </span>
-          </button>
-
           {/* User Menu */}
           <div className="relative">
             <button
