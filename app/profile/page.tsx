@@ -37,16 +37,21 @@ export default function ProfilePage() {
     setError(null);
 
     try {
+      console.log('[Profile] Fetching sessions for user:', user.id);
       const response = await fetch(`/api/sessions/list?userId=${user.id}`);
       const data = await response.json();
 
+      console.log('[Profile] Sessions API response:', response.ok, data);
+
       if (response.ok) {
         setSessions(data.sessions || []);
+        console.log('[Profile] Set sessions state:', data.sessions);
       } else {
         setError(data.error || 'Failed to fetch sessions');
+        console.error('[Profile] Failed to fetch sessions:', data.error);
       }
     } catch (err) {
-      console.error('Error fetching sessions:', err);
+      console.error('[Profile] Error fetching sessions:', err);
       setError('Failed to fetch sessions');
     } finally {
       setLoadingSessions(false);

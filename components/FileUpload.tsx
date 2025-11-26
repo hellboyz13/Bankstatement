@@ -50,14 +50,26 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
     }
   };
 
-  const handleClearAllStatements = () => {
-    setStatements([]);
-    setSelectedStatementId('all');
-    setUploadedData(null);
-    setSessionName('');
-    setSuccess(null);
-    setError(null);
-    onStatementSelect?.('all');
+  const handleClearAllStatements = async () => {
+    try {
+      // Clear server-side storage
+      await fetch('/api/clear-local', { method: 'POST' });
+
+      // Clear component state
+      setStatements([]);
+      setSelectedStatementId('all');
+      setUploadedData(null);
+      setSessionName('');
+      setSuccess(null);
+      setError(null);
+      onStatementSelect?.('all');
+
+      // Notify dashboard to refresh
+      onUploadSuccess();
+    } catch (err) {
+      console.error('Error clearing statements:', err);
+      setError('Failed to clear statements');
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
