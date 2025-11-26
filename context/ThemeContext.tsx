@@ -59,11 +59,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Prevent flash of unstyled content before mounted
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
+  // Always provide context, even during SSR to prevent build errors
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}

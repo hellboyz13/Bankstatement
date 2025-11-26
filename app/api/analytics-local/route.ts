@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 // Access global transactions
 declare global {
   var localTransactions: any[] | undefined;
