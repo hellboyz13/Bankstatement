@@ -29,8 +29,8 @@ export default function Header() {
   if (!mounted) return null;
 
   return (
-    <header className="fixed top-0 right-0 z-50 p-4 flex items-center gap-3">
-      {/* Home Button */}
+    <header className="fixed top-0 left-0 right-0 z-50 p-4 flex items-center justify-between">
+      {/* Home Button - Left */}
       <Link
         href="/dashboard"
         className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors smooth-transition"
@@ -40,7 +40,7 @@ export default function Header() {
         🏠
       </Link>
 
-      {/* Theme Toggle */}
+      {/* Theme Toggle - Right */}
       <button
         onClick={toggleTheme}
         className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors smooth-transition"
