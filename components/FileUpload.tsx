@@ -38,20 +38,8 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
   const [statements, setStatements] = useState<Statement[]>([]);
   const [selectedStatementId, setSelectedStatementId] = useState<string | 'all'>('all');
 
-  useEffect(() => {
-    fetchStatements();
-  }, []);
-
-  const fetchStatements = async () => {
-    try {
-      const res = await fetch('/api/statements-local');
-      const data = await res.json();
-      console.log('Fetched statements:', data.statements);
-      setStatements(data.statements || []);
-    } catch (error) {
-      console.error('Failed to fetch statements:', error);
-    }
-  };
+  // Don't fetch from server on mount - server storage is unreliable in dev mode
+  // Statements will be added directly from upload responses
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -124,8 +112,8 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
 
       onUploadSuccess();
 
-      // Refresh statements list
-      await fetchStatements();
+      // Don't fetch from server - we're managing statements locally now
+      // await fetchStatements();
 
       // Reset form
       e.target.value = '';
@@ -209,9 +197,10 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         </div>
 
         {/* Statement Navigation Tabs */}
+        {console.log('Rendering FileUpload - statements.length:', statements.length, 'statements:', statements)}
         {statements.length > 0 && (
           <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-blue-300 dark:border-blue-600">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">📂 Your Uploaded Statements</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">📂 Your Uploaded Statements ({statements.length})</h3>
             <div className="flex flex-wrap gap-2">
               {statements.map((stmt) => (
                 <button
