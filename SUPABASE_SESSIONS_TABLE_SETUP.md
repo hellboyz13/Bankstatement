@@ -14,24 +14,57 @@ This is because the `sessions` table doesn't exist in your Supabase database yet
 3. Click on **SQL Editor** in the left sidebar
 4. Click **New query**
 
-### Step 2: Run This SQL Command
+### Step 2: Verify or Create the Table
 
-Copy and paste the following SQL into the SQL Editor and click **RUN**:
+**First, check if the table already exists:**
 
 ```sql
+-- Check if sessions table exists
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public' AND table_name = 'sessions';
+```
+
+**If the table exists, verify the structure:**
+
+```sql
+-- Check table structure
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'sessions'
+ORDER BY ordinal_position;
+```
+
+**If you need to create the table from scratch, run this SQL:**
+
+```sql
+-- Drop existing table if needed (WARNING: This deletes all session data!)
+-- DROP TABLE IF EXISTS sessions CASCADE;
+
 -- Create sessions table for Premium users to save their bank statement sessions
 CREATE TABLE IF NOT EXISTS sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
   filename TEXT NOT NULL,
   upload_date TIMESTAMPTZ DEFAULT now(),
   modified_date TIMESTAMPTZ DEFAULT now(),
   transaction_count INTEGER NOT NULL,
   statement_start_date DATE,
   statement_end_date DATE,
-  transactions_data JSONB NOT NULL,
-  CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+  transactions_data JSONB NOT NULL
 );
+
+-- Add foreign key constraint if not exists
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'sessions_user_id_fkey'
+  ) THEN
+    ALTER TABLE sessions
+    ADD CONSTRAINT sessions_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 -- Create index on user_id for faster queries
 CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions(user_id);
@@ -41,6 +74,12 @@ CREATE INDEX IF NOT EXISTS sessions_upload_date_idx ON sessions(upload_date DESC
 
 -- Enable Row Level Security
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (to avoid conflicts)
+DROP POLICY IF EXISTS "Users can view own sessions" ON sessions;
+DROP POLICY IF EXISTS "Users can insert own sessions" ON sessions;
+DROP POLICY IF EXISTS "Users can update own sessions" ON sessions;
+DROP POLICY IF EXISTS "Users can delete own sessions" ON sessions;
 
 -- Create policy: Users can only see their own sessions
 CREATE POLICY "Users can view own sessions"
