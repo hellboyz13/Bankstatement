@@ -30,20 +30,20 @@ export async function GET(request: NextRequest) {
 
     // Calculate analytics
     const income = transactions
-      .filter((t) => t.amount > 0)
-      .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
+      .filter((t: any) => t.amount > 0)
+      .reduce((sum: number, t: any) => sum + parseFloat(t.amount.toString()), 0);
 
     const expenses = Math.abs(
       transactions
-        .filter((t) => t.amount < 0)
-        .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0)
+        .filter((t: any) => t.amount < 0)
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount.toString()), 0)
     );
 
     // Group by category
     const byCategory: Record<string, number> = {};
     transactions
-      .filter((t) => t.amount < 0) // Only expenses
-      .forEach((t) => {
+      .filter((t: any) => t.amount < 0) // Only expenses
+      .forEach((t: any) => {
         const category = t.category || 'Miscellaneous';
         byCategory[category] =
           (byCategory[category] || 0) + Math.abs(parseFloat(t.amount.toString()));
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     // Group by month
     const byMonth: Record<string, { income: number; expenses: number }> = {};
-    transactions.forEach((t) => {
+    transactions.forEach((t: any) => {
       const month = t.date.substring(0, 7); // YYYY-MM
       if (!byMonth[month]) {
         byMonth[month] = { income: 0, expenses: 0 };

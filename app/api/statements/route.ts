@@ -21,7 +21,7 @@ export async function GET() {
     }
 
     // Format response
-    const formattedStatements = statements.map((s) => ({
+    const formattedStatements = statements.map((s: any) => ({
       id: s.id,
       bank_name: s.bank_name,
       file_name: s.file_name,
