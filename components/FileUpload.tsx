@@ -41,12 +41,26 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
   // Don't fetch from server on mount - server storage is unreliable in dev mode
   // Statements will be added directly from upload responses
 
-  const handleRemoveStatement = (statementId: string) => {
-    setStatements(prev => prev.filter(stmt => stmt.id !== statementId));
-    // If we removed the selected statement, switch to 'all'
-    if (selectedStatementId === statementId) {
-      setSelectedStatementId('all');
-      onStatementSelect?.('all');
+  const handleRemoveStatement = async (statementId: string) => {
+    try {
+      // For now, removing a statement clears all server data
+      // TODO: Add API endpoint to delete individual statements
+      await fetch('/api/clear-local', { method: 'POST' });
+
+      // Remove from local state
+      setStatements(prev => prev.filter(stmt => stmt.id !== statementId));
+
+      // If we removed the selected statement, switch to 'all'
+      if (selectedStatementId === statementId) {
+        setSelectedStatementId('all');
+        onStatementSelect?.('all');
+      }
+
+      // Notify dashboard to refresh
+      onUploadSuccess();
+    } catch (err) {
+      console.error('Error removing statement:', err);
+      setError('Failed to remove statement');
     }
   };
 
