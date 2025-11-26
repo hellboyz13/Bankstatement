@@ -28,10 +28,9 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
-    if (user.plan === 'premium') {
-      fetchSessions();
-    }
-  }, [user.id, user.plan]);
+    // Fetch sessions for all users to show what's saved
+    fetchSessions();
+  }, [user.id]);
 
   const fetchSessions = async () => {
     setLoadingSessions(true);
