@@ -106,6 +106,19 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
             endDate: data.statement.end_date,
           });
           setSessionName(data.statement.file_name.replace(/\.pdf$/i, ''));
+
+          // Add the newly uploaded statement to the list immediately
+          const newStatement: Statement = {
+            id: data.statement.id,
+            bank_name: data.statement.bank_name,
+            file_name: data.statement.file_name,
+            uploaded_at: new Date().toISOString(),
+            start_date: data.statement.start_date,
+            end_date: data.statement.end_date,
+            transaction_count: data.statement.transaction_count,
+          };
+          setStatements(prev => [...prev, newStatement]);
+          console.log('Added statement to list:', newStatement);
         }
       }
 
