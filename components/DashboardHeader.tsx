@@ -20,8 +20,16 @@ export default function DashboardHeader() {
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm animate-slideInDown">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        {/* Left side: Logo and title */}
-        <div className="flex items-center gap-2">
+        {/* Left side: Home button and title */}
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 smooth-transition hover-lift transition-colors"
+            title="Go to Dashboard"
+            aria-label="Home"
+          >
+            🏠
+          </Link>
           <h1 className="text-xl font-bold text-black dark:text-white smooth-transition">Bank Statement Analyzer</h1>
         </div>
 
@@ -61,8 +69,15 @@ export default function DashboardHeader() {
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 animate-scaleIn">
                 <Link
-                  href="/profile"
+                  href="/dashboard"
                   className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 first:rounded-t-lg"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/profile"
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   onClick={() => setMenuOpen(false)}
                 >
                   Profile
