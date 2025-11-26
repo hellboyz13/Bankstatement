@@ -14,7 +14,17 @@
       "Bash(git commit:*)",
       "Bash(npm run build:*)",
       "Bash([ -d .next ])",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git fetch:*)",
+      "Bash(exit 0)",
+      "Bash(npm install)",
+      "Bash(del nul 2)",
+      "Bash($null)",
+      "Bash(if [ -f .env.local ])",
+      "Bash(then echo \"File exists\")",
+      "Bash(cat:*)",
+      "Bash(else echo \"File does not exist\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

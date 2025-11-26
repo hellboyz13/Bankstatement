@@ -21,6 +21,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [uploadedData, setUploadedData] = useState<UploadedData | null>(null);
   const [sessionName, setSessionName] = useState('');
 
@@ -100,6 +101,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
 
     setSaving(true);
     setError(null);
+    setSuccess(null);
 
     try {
       const response = await fetch('/api/sessions/create', {
@@ -122,9 +124,15 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         throw new Error(result.error || 'Failed to save session');
       }
 
+      // Show success message
+      setSuccess(`✅ Session "${sessionName || uploadedData.filename}" saved successfully!`);
+
       // Clear uploaded data after successful save
       setUploadedData(null);
       setSessionName('');
+
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       console.error('Save session error:', err);
       setError(err instanceof Error ? err.message : 'Failed to save session');
@@ -185,6 +193,12 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         {error && (
           <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-200 text-sm animate-slideInDown">
             {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md text-green-700 dark:text-green-200 text-sm animate-slideInDown">
+            {success}
           </div>
         )}
 
