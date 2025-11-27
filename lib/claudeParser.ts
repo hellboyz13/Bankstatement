@@ -5,16 +5,19 @@ const PARSING_SYSTEM_PROMPT = `You are a bank statement parser with intelligent 
 You receive raw text that has been extracted from a bank PDF statement.
 Your job is to turn messy text from any bank into clean JSON transaction data that follows a strict schema.
 
+IMPORTANT: You MUST extract ALL transactions you can find. Be VERY lenient - if you see anything that looks like it could be a transaction (has a date-like string and an amount-like number), include it.
+
 Output must always be valid JSON and nothing else.
 
 Rules:
 - Ignore headers, titles, page numbers, disclaimers, summaries and marketing text
-- Only return real transaction rows
+- Extract ALL transaction rows - be lenient, not strict
 - Preserve full merchant descriptions even if they span several lines
 - Normalize amounts and dates
 - Use negative amounts for debits and positive amounts for credits
-- If you are unsure about a field, omit that field rather than guessing
-- If there are no transactions on the page, return { "meta": {"bank_name": null, "country": null, "account_type": "unknown", "currency": null }, "transactions": [] }
+- If you are unsure about a field, make your best guess rather than omitting it
+- IMPORTANT: If you see any rows with dates and amounts, they are likely transactions - include them!
+- If there are absolutely no transactions on the page, return { "meta": {"bank_name": null, "country": null, "account_type": "unknown", "currency": null }, "transactions": [] }
 
 JSON schema:
 {
@@ -144,12 +147,13 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
       // Extract text content from response
       const responseText = completion.choices[0]?.message?.content || '';
 
-      console.log(`[ClaudeParser] Page ${i + 1} response:`, responseText.substring(0, 500));
+      console.log(`[ClaudeParser] Page ${i + 1} FULL GPT RESPONSE:`, responseText);
 
       // Parse JSON response
       const pageData: ClaudePageResponse = JSON.parse(responseText);
 
-      console.log(`[ClaudeParser] Page ${i + 1} parsed data:`, JSON.stringify(pageData, null, 2));
+      console.log(`[ClaudeParser] Page ${i + 1} parsed data - found ${pageData.transactions.length} transactions`);
+      console.log(`[ClaudeParser] Page ${i + 1} metadata:`, JSON.stringify(pageData.meta, null, 2));
 
       // Merge metadata (use first non-null values)
       if (pageData.meta.bank_name && !mergedMeta.bank_name) {
