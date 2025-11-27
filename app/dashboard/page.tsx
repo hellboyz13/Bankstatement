@@ -200,12 +200,12 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Refetch data when filters or selected statement changes
+  // Refetch data when filters, selected statement, or statements list changes
   useEffect(() => {
-    if (!loadingSession) {
+    if (!loadingSession && statements.length > 0) {
       fetchData();
     }
-  }, [filters, selectedStatementId]);
+  }, [filters, selectedStatementId, statements.length]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));

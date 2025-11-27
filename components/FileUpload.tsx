@@ -184,8 +184,13 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
   };
 
   const handleSaveSession = async () => {
-    if (!uploadedData || !user?.id) {
-      setError('Missing upload data or user information');
+    if (!user?.id) {
+      setError('Missing user information');
+      return;
+    }
+
+    if (statements.length === 0) {
+      setError('No statements to save. Please upload at least one statement.');
       return;
     }
 
@@ -194,6 +199,34 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
     setSuccess(null);
 
     try {
+      console.log('[FileUpload] Fetching all transactions for session save');
+
+      // Fetch ALL transactions from server (not just uploaded data)
+      const transactionsRes = await fetch('/api/transactions-local');
+      const transactionsData = await transactionsRes.json();
+
+      if (!transactionsData.transactions || transactionsData.transactions.length === 0) {
+        throw new Error('No transactions found to save');
+      }
+
+      console.log('[FileUpload] Saving', transactionsData.transactions.length, 'transactions');
+
+      // Get the date range from all statements
+      const allStatements = statements;
+      const startDates = allStatements
+        .map(s => s.start_date)
+        .filter(d => d !== null)
+        .sort();
+      const endDates = allStatements
+        .map(s => s.end_date)
+        .filter(d => d !== null)
+        .sort();
+
+      const sessionFilename = sessionName ||
+        (allStatements.length === 1
+          ? allStatements[0].file_name
+          : `Combined Statements (${allStatements.length} files)`);
+
       const response = await fetch('/api/sessions/create', {
         method: 'POST',
         headers: {
@@ -201,10 +234,10 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         },
         body: JSON.stringify({
           userId: user.id,
-          filename: sessionName || uploadedData.filename,
-          transactions: uploadedData.transactions,
-          statementStartDate: uploadedData.startDate,
-          statementEndDate: uploadedData.endDate,
+          filename: sessionFilename,
+          transactions: transactionsData.transactions,
+          statementStartDate: startDates[0] || null,
+          statementEndDate: endDates[endDates.length - 1] || null,
         }),
       });
 
@@ -214,8 +247,10 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         throw new Error(result.error || 'Failed to save session');
       }
 
+      console.log('[FileUpload] Session saved successfully:', result);
+
       // Show success message
-      setSuccess(`✅ Session "${sessionName || uploadedData.filename}" saved successfully!`);
+      setSuccess(`✅ Session "${sessionFilename}" saved successfully with ${transactionsData.transactions.length} transactions!`);
 
       // Clear uploaded data after successful save
       setUploadedData(null);
