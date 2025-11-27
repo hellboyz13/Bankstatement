@@ -50,6 +50,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [statements, setStatements] = useState<Statement[]>([]);
   const [selectedStatementId, setSelectedStatementId] = useState<string | 'all'>('all');
+  const [loadingSession, setLoadingSession] = useState(false);
+  const [loadedSessionName, setLoadedSessionName] = useState<string | null>(null);
 
   const [filters, setFilters] = useState({
     startDate: '',
@@ -66,6 +68,76 @@ export default function DashboardPage() {
       console.error('Failed to fetch statements:', error);
     }
   }, []);
+
+  const loadSession = async (sessionId: string) => {
+    if (!user?.id) return;
+
+    setLoadingSession(true);
+    setLoading(true);
+
+    try {
+      console.log('[Dashboard] Loading session:', sessionId);
+
+      const response = await fetch(
+        `/api/sessions/load?sessionId=${sessionId}&userId=${user.id}`
+      );
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        console.log('[Dashboard] Session loaded successfully:', data);
+        setLoadedSessionName(data.session.filename);
+
+        // Refresh statements
+        try {
+          const res = await fetch('/api/statements-local');
+          const statementsData = await res.json();
+          setStatements(statementsData.statements || []);
+        } catch (error) {
+          console.error('Failed to fetch statements:', error);
+        }
+
+        // Refresh data
+        try {
+          const params = new URLSearchParams();
+          if (filters.startDate) params.append('startDate', filters.startDate);
+          if (filters.endDate) params.append('endDate', filters.endDate);
+          if (filters.category !== 'all')
+            params.append('category', filters.category);
+          if (selectedStatementId !== 'all')
+            params.append('statementId', selectedStatementId);
+
+          const transactionsRes = await fetch(
+            `/api/transactions-local?${params.toString()}`
+          );
+          const transactionsData = await transactionsRes.json();
+
+          const analyticsParams = new URLSearchParams();
+          if (filters.startDate)
+            analyticsParams.append('startDate', filters.startDate);
+          if (filters.endDate) analyticsParams.append('endDate', filters.endDate);
+          if (selectedStatementId !== 'all')
+            analyticsParams.append('statementId', selectedStatementId);
+
+          const analyticsRes = await fetch(
+            `/api/analytics-local?${analyticsParams.toString()}`
+          );
+          const analyticsData = await analyticsRes.json();
+
+          setTransactions(transactionsData.transactions || []);
+          setAnalytics(analyticsData);
+        } catch (error) {
+          console.error('Failed to fetch data:', error);
+        }
+      } else {
+        console.error('[Dashboard] Failed to load session:', data.error);
+      }
+    } catch (error) {
+      console.error('[Dashboard] Error loading session:', error);
+    } finally {
+      setLoadingSession(false);
+      setLoading(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -108,10 +180,31 @@ export default function DashboardPage() {
   // Note: Removed automatic clear-local on mount to preserve uploaded statement data
   // Users can manually clear data if needed
 
+  // Check for loadSession query parameter on mount
   useEffect(() => {
-    fetchStatements();
-    fetchData();
-  }, [fetchStatements, fetchData]);
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const sessionId = searchParams.get('loadSession');
+
+      if (sessionId) {
+        console.log('[Dashboard] Found loadSession parameter:', sessionId);
+        loadSession(sessionId);
+        // Remove the query parameter after loading
+        window.history.replaceState({}, '', '/dashboard');
+      } else {
+        // Normal data fetch
+        fetchStatements();
+        fetchData();
+      }
+    }
+  }, []);
+
+  // Refetch data when filters or selected statement changes
+  useEffect(() => {
+    if (!loadingSession) {
+      fetchData();
+    }
+  }, [filters, selectedStatementId]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -156,6 +249,24 @@ export default function DashboardPage() {
           <p className="text-gray-600 dark:text-gray-400 mt-2 smooth-transition">
             Upload your bank statements and analyze your spending patterns
           </p>
+
+          {/* Loading Session Indicator */}
+          {loadingSession && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg animate-slideInDown">
+              <p className="text-sm text-blue-900 dark:text-blue-200">
+                <span className="font-semibold">⏳ Loading session...</span>
+              </p>
+            </div>
+          )}
+
+          {/* Loaded Session Indicator */}
+          {!loadingSession && loadedSessionName && (
+            <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg animate-slideInDown">
+              <p className="text-sm text-green-900 dark:text-green-200">
+                <span className="font-semibold">📂 Loaded Session:</span> {loadedSessionName}
+              </p>
+            </div>
+          )}
 
           {/* Free Plan Usage Info */}
           {user?.plan === 'free' && (

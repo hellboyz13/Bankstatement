@@ -43,9 +43,22 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
 
   const handleRemoveStatement = async (statementId: string) => {
     try {
-      // For now, removing a statement clears all server data
-      // TODO: Add API endpoint to delete individual statements
-      await fetch('/api/clear-local', { method: 'POST' });
+      console.log('[FileUpload] Removing statement:', statementId);
+
+      // Call API to remove specific statement
+      const response = await fetch('/api/remove-statement', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ statementId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove statement');
+      }
+
+      console.log('[FileUpload] Statement removed successfully');
 
       // Remove from local state
       setStatements(prev => prev.filter(stmt => stmt.id !== statementId));

@@ -301,6 +301,12 @@ export default function ProfilePage() {
 
                       {renamingId !== session.id && (
                         <div className="flex gap-2 ml-4">
+                          <Link
+                            href={`/dashboard?loadSession=${session.id}`}
+                            className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-200 rounded-md hover:bg-green-200 dark:hover:bg-green-900/50 text-sm font-medium transition-colors"
+                          >
+                            👁️ View
+                          </Link>
                           <button
                             onClick={() => {
                               setRenamingId(session.id);

@@ -67,3 +67,22 @@ export function clearAll() {
   global.localTransactions = [];
   global.localStatements = [];
 }
+
+export function removeStatement(statementId: string) {
+  if (!global.localStatements) {
+    global.localStatements = [];
+  }
+  if (!global.localTransactions) {
+    global.localTransactions = [];
+  }
+
+  // Remove the statement
+  global.localStatements = global.localStatements.filter(
+    (stmt: StoredStatement) => stmt.id !== statementId
+  );
+
+  // Remove all transactions associated with this statement
+  global.localTransactions = global.localTransactions.filter(
+    (txn: StoredTransaction) => txn.statement_id !== statementId
+  );
+}
