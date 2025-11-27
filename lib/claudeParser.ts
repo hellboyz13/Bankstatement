@@ -138,6 +138,7 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
         ],
         temperature: 0,
         max_tokens: 4096,
+        response_format: { type: "json_object" },
       });
 
       // Extract text content from response
