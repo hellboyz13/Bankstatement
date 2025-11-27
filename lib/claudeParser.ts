@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import type { ParsedStatement, ClaudePageResponse, ParsedTransaction } from './types/parsed-statement';
 
 const PARSING_SYSTEM_PROMPT = `You are a bank statement parser with intelligent categorization capabilities.
@@ -98,13 +98,13 @@ Output rules:
  * @returns Unified ParsedStatement with all transactions
  */
 export async function parseBankStatementWithClaude(pages: string[]): Promise<ParsedStatement> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY environment variable is not set');
+    throw new Error('OPENAI_API_KEY environment variable is not set');
   }
 
-  const anthropic = new Anthropic({
+  const openai = new OpenAI({
     apiKey,
   });
 
@@ -124,23 +124,24 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
     console.log(`[ClaudeParser] Page ${i + 1} text length: ${pageText.length} characters`);
 
     try {
-      const message = await anthropic.messages.create({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 4096,
-        system: PARSING_SYSTEM_PROMPT,
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
         messages: [
+          {
+            role: 'system',
+            content: PARSING_SYSTEM_PROMPT,
+          },
           {
             role: 'user',
             content: `Parse this bank statement page:\n\n${pageText}`,
           },
         ],
+        temperature: 0,
+        max_tokens: 4096,
       });
 
       // Extract text content from response
-      const responseText = message.content
-        .filter((block) => block.type === 'text')
-        .map((block) => ('text' in block ? block.text : ''))
-        .join('');
+      const responseText = completion.choices[0]?.message?.content || '';
 
       console.log(`[ClaudeParser] Page ${i + 1} response:`, responseText.substring(0, 500));
 

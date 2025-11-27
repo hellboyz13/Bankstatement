@@ -1,15 +1,15 @@
-# Claude AI Bank Statement Parser
+# AI Bank Statement Parser
 
 ## Overview
 
-This implementation adds a universal PDF bank statement parsing pipeline using Claude AI (Anthropic) that can handle statements from **any bank worldwide**.
+This implementation adds a universal PDF bank statement parsing pipeline using OpenAI's GPT-4o-mini that can handle statements from **any bank worldwide**.
 
 ## Features
 
 ✅ **Universal Bank Support** - Works with statements from any bank, any country
 ✅ **Intelligent Parsing** - AI understands context, not just patterns
 ✅ **Multi-line Transactions** - Handles wrapped descriptions and complex layouts
-✅ **Smart AI Categorization** - Uses Claude Haiku 3 to intelligently categorize transactions with confidence scores
+✅ **Smart AI Categorization** - Uses GPT-4o-mini to intelligently categorize transactions with confidence scores
 ✅ **Metadata Extraction** - Detects bank name, country, account type, currency
 ✅ **Fallback Support** - Toggle between AI parser and legacy pattern-based parser
 
@@ -101,11 +101,11 @@ This implementation adds a universal PDF bank statement parsing pipeline using C
 Add to `.env.local`:
 
 ```bash
-ANTHROPIC_API_KEY=your_api_key_here
+OPENAI_API_KEY=your_api_key_here
 ```
 
 **Getting an API Key:**
-1. Sign up at https://console.anthropic.com/
+1. Sign up at https://platform.openai.com/
 2. Navigate to API Keys section
 3. Create a new API key
 4. Copy and paste into `.env.local`
@@ -284,17 +284,17 @@ Try with a simple bank statement first before complex ones.
 
 ### Cost
 
-Claude API pricing (as of 2024):
-- Model: `claude-3-5-haiku-20241022`
-- Input: ~$0.25 per million tokens
-- Output: ~$1.25 per million tokens
+OpenAI API pricing (as of 2024):
+- Model: `gpt-4o-mini`
+- Input: ~$0.15 per million tokens
+- Output: ~$0.60 per million tokens
 
 **Estimated cost per statement:**
-- 1-5 pages: ~$0.001 - $0.005 (less than a penny)
-- 10 pages: ~$0.01
-- 20 pages: ~$0.02
+- 1-5 pages: ~$0.0005 - $0.003 (less than a penny)
+- 10 pages: ~$0.006
+- 20 pages: ~$0.012
 
-**Cost savings vs Sonnet:** ~10x cheaper while maintaining high accuracy
+**Very cost-effective:** GPT-4o-mini is one of the cheapest AI models while maintaining high accuracy
 
 ### Optimization Tips
 
