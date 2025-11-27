@@ -36,7 +36,6 @@ JSON schema:
       "currency": "string or null",
       "type": "debit | credit | payment | fee | interest | refund | unknown",
       "balance": 0.0,
-      "raw_lines": ["original line 1", "original line 2"],
       "category": "string",
       "category_confidence": 0.0
     }
@@ -58,7 +57,6 @@ Field rules:
   - payment for credit card payments
   - refund for reversals
   - otherwise debit or credit based on sign
-- raw_lines: include the original extracted lines that belong to this transaction.
 
 INTELLIGENT CATEGORIZATION RULES:
 - category: Assign ONE category from this list: "Food & Dining", "Transport", "Shopping", "Bills & Utilities", "Salary & Income", "Healthcare", "Entertainment", "Travel", "Education", "Transfers", "Miscellaneous"
@@ -140,17 +138,32 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
           },
         ],
         temperature: 0,
-        max_tokens: 4096,
+        max_tokens: 16000,
         response_format: { type: "json_object" },
       });
 
       // Extract text content from response
       const responseText = completion.choices[0]?.message?.content || '';
 
+      console.log(`[ClaudeParser] Page ${i + 1} GPT response length:`, responseText.length);
+      console.log(`[ClaudeParser] Page ${i + 1} finish_reason:`, completion.choices[0]?.finish_reason);
       console.log(`[ClaudeParser] Page ${i + 1} FULL GPT RESPONSE:`, responseText);
 
+      // Check if response was truncated
+      if (completion.choices[0]?.finish_reason === 'length') {
+        console.error(`[ClaudeParser] Page ${i + 1} WARNING: Response was truncated due to max_tokens limit`);
+        throw new Error('GPT response was truncated. The page has too many transactions.');
+      }
+
       // Parse JSON response
-      const pageData: ClaudePageResponse = JSON.parse(responseText);
+      let pageData: ClaudePageResponse;
+      try {
+        pageData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error(`[ClaudeParser] Page ${i + 1} JSON parse error:`, parseError);
+        console.error(`[ClaudeParser] Page ${i + 1} Last 500 chars of response:`, responseText.slice(-500));
+        throw new Error(`Failed to parse GPT JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
 
       console.log(`[ClaudeParser] Page ${i + 1} parsed data - found ${pageData.transactions.length} transactions`);
       console.log(`[ClaudeParser] Page ${i + 1} metadata:`, JSON.stringify(pageData.meta, null, 2));
