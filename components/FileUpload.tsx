@@ -249,15 +249,20 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
 
       console.log('[FileUpload] Session saved successfully:', result);
 
-      // Show success message
-      setSuccess(`✅ Session "${sessionFilename}" saved successfully with ${transactionsData.transactions.length} transactions!`);
+      // Show success message with refresh instruction
+      setSuccess(`✅ Session "${sessionFilename}" saved successfully with ${transactionsData.transactions.length} transactions! Go to Profile page and click Refresh to see it.`);
 
       // Clear uploaded data after successful save
       setUploadedData(null);
       setSessionName('');
 
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccess(null), 5000);
+      // Dispatch custom event to notify other components
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sessionSaved', { detail: result }));
+      }
+
+      // Clear success message after 10 seconds (longer to give time to read)
+      setTimeout(() => setSuccess(null), 10000);
     } catch (err) {
       console.error('Save session error:', err);
       setError(err instanceof Error ? err.message : 'Failed to save session');

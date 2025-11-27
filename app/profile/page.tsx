@@ -40,8 +40,19 @@ export default function ProfilePage() {
       }
     };
 
+    // Listen for sessionSaved events from FileUpload component
+    const handleSessionSaved = (event: Event) => {
+      console.log('[Profile] Session saved event received, refreshing sessions');
+      fetchSessions();
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('sessionSaved', handleSessionSaved as EventListener);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('sessionSaved', handleSessionSaved as EventListener);
+    };
   }, []);
 
   const fetchSessions = async () => {
