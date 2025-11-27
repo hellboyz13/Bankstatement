@@ -86,8 +86,11 @@ Layout handling:
 
 Output rules:
 - Return only JSON text, no markdown and no code fences.
-- All items in transactions must have at least date, description, amount, category, and category_confidence.
-- If a row does not contain a valid date and amount, skip it.`;
+- All items in transactions must have at least date, description, and amount.
+- Include category and category_confidence whenever possible, but if truly uncertain, you may use "Miscellaneous" with confidence 0.3.
+- Be lenient with date parsing - accept any reasonable date format.
+- If a row does not contain a valid date and amount, skip it.
+- Extract AS MANY valid transactions as possible - do not be overly strict.`;
 
 /**
  * Parse bank statement pages using Claude AI
@@ -138,10 +141,12 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
         .map((block) => ('text' in block ? block.text : ''))
         .join('');
 
-      console.log(`[ClaudeParser] Page ${i + 1} response:`, responseText.substring(0, 200));
+      console.log(`[ClaudeParser] Page ${i + 1} response:`, responseText.substring(0, 500));
 
       // Parse JSON response
       const pageData: ClaudePageResponse = JSON.parse(responseText);
+
+      console.log(`[ClaudeParser] Page ${i + 1} parsed data:`, JSON.stringify(pageData, null, 2));
 
       // Merge metadata (use first non-null values)
       if (pageData.meta.bank_name && !mergedMeta.bank_name) {
@@ -169,12 +174,20 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
 
   // Validate and filter transactions
   const validTransactions = allTransactions.filter((txn) => {
-    return txn.date && txn.description && typeof txn.amount === 'number';
+    const isValid = txn.date && txn.description && typeof txn.amount === 'number';
+    if (!isValid) {
+      console.log(`[ClaudeParser] Filtered out invalid transaction:`, JSON.stringify(txn));
+    }
+    return isValid;
   });
 
   console.log(
     `[ClaudeParser] Total transactions: ${validTransactions.length} (filtered from ${allTransactions.length})`
   );
+
+  if (validTransactions.length === 0 && allTransactions.length === 0) {
+    console.log(`[ClaudeParser] WARNING: No transactions found at all. Check if PDF text extraction is working.`);
+  }
 
   return {
     meta: mergedMeta,
