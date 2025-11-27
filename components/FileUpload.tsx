@@ -37,6 +37,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
   const [sessionName, setSessionName] = useState('');
   const [statements, setStatements] = useState<Statement[]>([]);
   const [selectedStatementId, setSelectedStatementId] = useState<string | 'all'>('all');
+  const [useClaudeParser, setUseClaudeParser] = useState(true); // Use Claude AI by default
 
   // Don't fetch from server on mount - server storage is unreliable in dev mode
   // Statements will be added directly from upload responses
@@ -130,7 +131,10 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('/api/upload-local', {
+        // Choose parser endpoint based on toggle
+        const endpoint = useClaudeParser ? '/api/parse-statement' : '/api/upload-local';
+
+        const response = await fetch(endpoint, {
           method: 'POST',
           body: formData,
         });
@@ -141,10 +145,47 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
           throw new Error(`${file.name}: ${data.error || 'Upload failed'}`);
         }
 
-        console.log(`Upload successful: ${file.name}`, data);
+        console.log(`Upload successful (${useClaudeParser ? 'Claude AI' : 'Legacy'}): ${file.name}`, data);
 
-        // Store uploaded data for session saving
-        if (data.statement && data.transactions) {
+        // Handle response based on parser type
+        if (useClaudeParser && data.success && data.statement) {
+          // Claude parser response - need to store to local storage
+          const storeResponse = await fetch('/api/store-parsed-statement', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              parsedStatement: data.statement,
+              fileName: file.name,
+            }),
+          });
+
+          const storeData = await storeResponse.json();
+
+          if (storeData.statement && storeData.transactions) {
+            setUploadedData({
+              filename: storeData.statement.file_name,
+              transactions: storeData.transactions,
+              startDate: storeData.statement.start_date,
+              endDate: storeData.statement.end_date,
+            });
+            setSessionName(storeData.statement.file_name.replace(/\.pdf$/i, ''));
+
+            const newStatement: Statement = {
+              id: storeData.statement.id,
+              bank_name: storeData.statement.bank_name || data.meta.bank_name,
+              file_name: storeData.statement.file_name,
+              uploaded_at: new Date().toISOString(),
+              start_date: storeData.statement.start_date,
+              end_date: storeData.statement.end_date,
+              transaction_count: storeData.statement.transaction_count,
+            };
+            setStatements(prev => [...prev, newStatement]);
+            console.log('Added Claude-parsed statement to list:', newStatement);
+          }
+        } else if (data.statement && data.transactions) {
+          // Legacy parser response
           setUploadedData({
             filename: data.statement.file_name,
             transactions: data.transactions,
@@ -153,7 +194,6 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
           });
           setSessionName(data.statement.file_name.replace(/\.pdf$/i, ''));
 
-          // Add the newly uploaded statement to the list immediately
           const newStatement: Statement = {
             id: data.statement.id,
             bank_name: data.statement.bank_name,
@@ -292,6 +332,32 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
             disabled={uploading || !canUpload}
             multiple={!isFreeUser}
           />
+        </div>
+
+        {/* Parser Toggle */}
+        <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex items-center gap-2">
+            <label htmlFor="parser-toggle" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+              🤖 Use AI Parser (Claude)
+            </label>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {useClaudeParser ? 'Universal support for all banks' : 'Legacy pattern-based parser'}
+            </span>
+          </div>
+          <button
+            type="button"
+            id="parser-toggle"
+            onClick={() => setUseClaudeParser(!useClaudeParser)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+              useClaudeParser ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                useClaudeParser ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
         </div>
 
         {/* Statement Navigation Tabs */}
