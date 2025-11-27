@@ -7,6 +7,7 @@ import FileUpload from '@/components/FileUpload';
 import TransactionFilters from '@/components/TransactionFilters';
 import TransactionTable from '@/components/TransactionTable';
 import AnalyticsCharts from '@/components/AnalyticsCharts';
+import LoadingScreen from '@/components/LoadingScreen';
 import { generateCSV, downloadCSV, generateFilename } from '@/lib/csv-export';
 
 interface Transaction {
@@ -238,6 +239,11 @@ export default function DashboardPage() {
   // Check free plan limit
   const canUpload = user?.plan === 'premium' || (user?.plan === 'free' && user.uploadCount < 1);
 
+  // Show full-screen loading when loading a session
+  if (loadingSession) {
+    return <LoadingScreen />;
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -250,17 +256,8 @@ export default function DashboardPage() {
             Upload your bank statements and analyze your spending patterns
           </p>
 
-          {/* Loading Session Indicator */}
-          {loadingSession && (
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg animate-slideInDown">
-              <p className="text-sm text-blue-900 dark:text-blue-200">
-                <span className="font-semibold">⏳ Loading session...</span>
-              </p>
-            </div>
-          )}
-
           {/* Loaded Session Indicator */}
-          {!loadingSession && loadedSessionName && (
+          {loadedSessionName && (
             <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg animate-slideInDown">
               <p className="text-sm text-green-900 dark:text-green-200">
                 <span className="font-semibold">📂 Loaded Session:</span> {loadedSessionName}

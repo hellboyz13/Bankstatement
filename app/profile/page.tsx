@@ -32,6 +32,18 @@ export default function ProfilePage() {
     fetchSessions();
   }, [user.id]);
 
+  // Auto-refresh when page becomes visible (e.g., after navigating back from dashboard)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchSessions();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   const fetchSessions = async () => {
     setLoadingSessions(true);
     setError(null);
@@ -227,7 +239,19 @@ export default function ProfilePage() {
         {user.plan === 'premium' && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 mb-8">
             <div className="mb-6">
-              <h3 className="text-xl font-bold text-black dark:text-white mb-4">📁 Statement Sessions</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-black dark:text-white">📁 Statement Sessions</h3>
+                <button
+                  onClick={fetchSessions}
+                  disabled={loadingSessions}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <svg className={`w-4 h-4 ${loadingSessions ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 View and manage your saved statement sessions. You can store up to 12 sessions per year.
               </p>
