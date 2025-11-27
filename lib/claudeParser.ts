@@ -121,6 +121,7 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
   for (let i = 0; i < pages.length; i++) {
     const pageText = pages[i];
     console.log(`[ClaudeParser] Processing page ${i + 1}/${pages.length}`);
+    console.log(`[ClaudeParser] Page ${i + 1} text length: ${pageText.length} characters`);
 
     try {
       const message = await anthropic.messages.create({

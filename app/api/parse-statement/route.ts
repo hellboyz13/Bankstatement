@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
 
     // Log first page preview
     console.log('[ParseStatement] First page preview:', pages[0].substring(0, 500));
+    console.log('[ParseStatement] Full first page text for debugging:', pages[0]);
 
     // Parse using Claude
     const parsedStatement = await parseBankStatementWithClaude(pages);
