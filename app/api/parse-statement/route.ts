@@ -40,8 +40,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[ParseStatement] Processing PDF: ${file.name} (${file.size} bytes)`);
-
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -54,8 +52,6 @@ export async function POST(request: NextRequest) {
     // We'll use form feed character (\f) as page delimiter which pdf-parse usually inserts
     const pages = data.text.split('\f').filter((page) => page.trim().length > 0);
 
-    console.log(`[ParseStatement] Extracted ${pages.length} pages from PDF`);
-
     if (pages.length === 0) {
       return NextResponse.json(
         { error: 'No text content found in PDF' },
@@ -63,11 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Log first page preview
-    console.log('[ParseStatement] First page preview:', pages[0].substring(0, 500));
-    console.log('[ParseStatement] Full first page text for debugging:', pages[0]);
-
-    // Parse using Claude
+    // Parse using GPT-4o-mini in a single call
     const parsedStatement = await parseBankStatementWithClaude(pages);
 
     if (parsedStatement.transactions.length === 0) {
@@ -79,8 +71,6 @@ export async function POST(request: NextRequest) {
         { status: 422 }
       );
     }
-
-    console.log(`[ParseStatement] Successfully parsed ${parsedStatement.transactions.length} transactions`);
 
     return NextResponse.json({
       success: true,
@@ -95,8 +85,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[ParseStatement] Error:', error);
-
     // Handle specific error types
     if (error instanceof SyntaxError) {
       return NextResponse.json(
@@ -108,7 +96,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (error instanceof Error && error.message.includes('ANTHROPIC_API_KEY')) {
+    if (error instanceof Error && error.message.includes('OPENAI_API_KEY')) {
       return NextResponse.json(
         {
           error: 'Configuration error',

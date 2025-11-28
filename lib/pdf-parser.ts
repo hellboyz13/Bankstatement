@@ -36,14 +36,9 @@ export async function parsePDFStatement(
     const data = await pdf(buffer);
     const text = data.text;
 
-    // Log raw text for debugging (first 1000 chars)
-    console.log('PDF Raw Text (preview):', text.substring(0, 1000));
-    console.log('\n--- Full PDF Text ---\n', text, '\n--- End PDF Text ---\n');
-
     // Check if this is a UOB credit card statement
     let transactions: ParsedTransaction[];
     if (isUOBCreditCard(text)) {
-      console.log('Detected: UOB Credit Card Statement');
       transactions = parseUOBCreditCard(text);
     } else {
       // Use generic parser for bank account statements
@@ -70,7 +65,6 @@ export async function parsePDFStatement(
       bankName: extractBankName(text),
     };
   } catch (error) {
-    console.error('PDF parsing error:', error);
     throw new Error(
       `Failed to parse PDF: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
@@ -328,7 +322,6 @@ const BANK_PARSERS: BankParser[] = [
 export function parseWithBankParser(text: string): ParsedTransaction[] | null {
   for (const parser of BANK_PARSERS) {
     if (parser.detect(text)) {
-      console.log(`Using ${parser.name} parser`);
       return parser.parse(text);
     }
   }

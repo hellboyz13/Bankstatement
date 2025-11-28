@@ -38,14 +38,11 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    console.log(`Processing PDF: ${file.name} (${file.size} bytes)`);
-
     // Parse PDF and extract transactions
     let parsedStatement;
     try {
       parsedStatement = await parsePDFStatement(buffer);
     } catch (parseError) {
-      console.error('Parsing error:', parseError);
       return NextResponse.json(
         {
           error: 'Failed to parse PDF',
@@ -62,8 +59,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Extracted ${parsedStatement.transactions.length} transactions`);
-
     // Create statement record
     const { data: statement, error: statementError } = await supabase
       .from('statements')
@@ -77,7 +72,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (statementError) {
-      console.error('Database error (statement):', statementError);
       return NextResponse.json(
         { error: 'Failed to save statement', details: statementError.message },
         { status: 500 }
@@ -101,7 +95,6 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (transactionsError) {
-      console.error('Database error (transactions):', transactionsError);
       // Rollback: delete the statement
       await supabase.from('statements').delete().eq('id', statement.id);
 
@@ -110,8 +103,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log(`Successfully saved ${transactions.length} transactions`);
 
     return NextResponse.json({
       success: true,
@@ -126,7 +117,6 @@ export async function POST(request: NextRequest) {
       transactions: transactions,
     });
   } catch (error) {
-    console.error('Unexpected error:', error);
     return NextResponse.json(
       {
         error: 'Internal server error',

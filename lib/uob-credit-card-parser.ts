@@ -28,8 +28,6 @@ export function parseUOBCreditCard(text: string): ParsedTransaction[] {
     }
   }
 
-  console.log('Statement year:', statementYear);
-
   // Look for transaction lines - amount may be on next line
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -137,12 +135,9 @@ export function parseUOBCreditCard(text: string): ParsedTransaction[] {
         balance: undefined,
         category,
       });
-
-      console.log('Parsed transaction:', { date, description, amount });
     }
   }
 
-  console.log(`Total transactions parsed: ${transactions.length}`);
   return transactions;
 }
 

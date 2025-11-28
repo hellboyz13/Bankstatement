@@ -38,14 +38,11 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    console.log(`Processing PDF: ${file.name} (${file.size} bytes)`);
-
     // Parse PDF and extract transactions
     let parsedStatement;
     try {
       parsedStatement = await parsePDFStatement(buffer);
     } catch (parseError) {
-      console.error('Parsing error:', parseError);
       return NextResponse.json(
         {
           error: 'Failed to parse PDF',
@@ -80,8 +77,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Extracted ${parsedStatement.transactions.length} transactions`);
-
     // Create statement record in memory
     const statementId = `stmt_${Date.now()}`;
     const statement = {
@@ -113,8 +108,6 @@ export async function POST(request: NextRequest) {
 
     addTransactions(transactions);
 
-    console.log(`Successfully saved ${transactions.length} transactions in memory`);
-
     return NextResponse.json({
       success: true,
       statement: {
@@ -128,7 +121,6 @@ export async function POST(request: NextRequest) {
       transactions: transactions,
     });
   } catch (error) {
-    console.error('Unexpected error:', error);
     return NextResponse.json(
       {
         error: 'Internal server error',
