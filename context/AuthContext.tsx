@@ -172,9 +172,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || 'Upload increment failed');
       }
 
-      const updatedUser = data.user;
-      setUser(updatedUser);
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      // For demo users, the API returns success without user data
+      // We need to increment locally
+      if (data.message && data.message.includes('Demo mode')) {
+        const updatedUser = { ...user, uploadCount: user.uploadCount + 1 };
+        setUser(updatedUser);
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      } else {
+        // For real users, use the updated user from Supabase
+        const updatedUser = data.user;
+        setUser(updatedUser);
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      }
     } catch (error) {
       console.error('Upload increment error:', error);
       // Fallback: update locally if API fails
