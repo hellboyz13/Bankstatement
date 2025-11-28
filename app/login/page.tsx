@@ -76,8 +76,8 @@ export default function LoginPage() {
     // Store demo user in localStorage
     localStorage.setItem('currentUser', JSON.stringify(demoUser));
 
-    // Navigate to dashboard
-    router.push('/dashboard');
+    // Force a full page reload to ensure AuthContext picks up the new user
+    window.location.href = '/dashboard';
   };
 
   return (
