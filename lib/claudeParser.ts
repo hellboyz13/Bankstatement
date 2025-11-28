@@ -37,6 +37,8 @@ Rules:
  * @returns Unified ParsedStatement with all transactions
  */
 export async function parseBankStatementWithClaude(pages: string[]): Promise<ParsedStatement> {
+  const startTime = Date.now();
+
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
@@ -48,9 +50,14 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
   });
 
   // Combine all pages into one text block for single API call
+  const startCombine = Date.now();
   const combinedText = pages.join('\n\n--- PAGE BREAK ---\n\n');
+  const combineTime = Date.now() - startCombine;
+
+  console.log(`[AI TIMING] Combined ${pages.length} pages (${combinedText.length} chars) in ${combineTime}ms`);
 
   try {
+    const startApiCall = Date.now();
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -67,7 +74,11 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
       max_tokens: 16000,
       response_format: { type: "json_object" },
     });
+    const apiCallTime = Date.now() - startApiCall;
 
+    console.log(`[AI TIMING] OpenAI API call completed in ${apiCallTime}ms`);
+
+    const startParse = Date.now();
     const responseText = completion.choices[0]?.message?.content || '';
 
     // Parse JSON response
@@ -77,6 +88,12 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
     const validTransactions = parsedData.transactions.filter((txn) =>
       txn.date && txn.description && typeof txn.amount === 'number'
     );
+    const parseTime = Date.now() - startParse;
+
+    const totalTime = Date.now() - startTime;
+
+    console.log(`[AI TIMING] JSON parsing & validation: ${parseTime}ms`);
+    console.log(`[AI TIMING] Total AI processing: ${totalTime}ms (found ${validTransactions.length} transactions)`);
 
     return {
       meta: parsedData.meta,

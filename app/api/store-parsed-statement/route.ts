@@ -6,9 +6,12 @@ import { categorizeTransaction } from '@/lib/categorization';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  const startTotal = Date.now();
   try {
+    const startJson = Date.now();
     const body = await request.json();
     const { parsedStatement, fileName }: { parsedStatement: ParsedStatement; fileName: string } = body;
+    const jsonTime = Date.now() - startJson;
 
     if (!parsedStatement || !parsedStatement.transactions) {
       return NextResponse.json(
@@ -17,9 +20,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[StoreParsed] Storing ${parsedStatement.transactions.length} transactions from ${fileName}`);
+    console.log(`[STORE TIMING] Parsing request JSON: ${jsonTime}ms`);
 
     // Create statement record
+    const startProcessing = Date.now();
     const statementId = `stmt_${Date.now()}`;
 
     // Extract date range from transactions
@@ -60,8 +64,11 @@ export async function POST(request: NextRequest) {
     }));
 
     addTransactions(transactions);
+    const processingTime = Date.now() - startProcessing;
+    const totalTime = Date.now() - startTotal;
 
-    console.log(`[StoreParsed] Successfully stored ${transactions.length} transactions`);
+    console.log(`[STORE TIMING] Data processing & storage: ${processingTime}ms`);
+    console.log(`[STORE TIMING] Total store operation: ${totalTime}ms (${transactions.length} transactions)`);
 
     return NextResponse.json({
       success: true,

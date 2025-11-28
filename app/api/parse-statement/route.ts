@@ -13,10 +13,15 @@ const getPdfParse = async () => {
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  const timings: Record<string, number> = {};
+  const startTotal = Date.now();
+
   try {
     // Parse form data
+    const startFormData = Date.now();
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    timings.formData = Date.now() - startFormData;
 
     // Validate file
     if (!file) {
@@ -41,16 +46,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert file to buffer
+    const startBuffer = Date.now();
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    timings.buffer = Date.now() - startBuffer;
 
     // Extract text from PDF per page
+    const startPdfExtract = Date.now();
     const pdf = await getPdfParse();
     const data = await pdf(buffer);
+    timings.pdfExtraction = Date.now() - startPdfExtract;
 
     // Split text by page breaks (pdf-parse concatenates all pages)
-    // We'll use form feed character (\f) as page delimiter which pdf-parse usually inserts
+    const startPageSplit = Date.now();
     const pages = data.text.split('\f').filter((page) => page.trim().length > 0);
+    timings.pageSplit = Date.now() - startPageSplit;
+
+    console.log(`[TIMING] PDF has ${pages.length} pages, file size: ${(file.size / 1024).toFixed(2)}KB`);
 
     if (pages.length === 0) {
       return NextResponse.json(
@@ -60,7 +72,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse using GPT-4o-mini in a single call
+    const startAiParsing = Date.now();
     const parsedStatement = await parseBankStatementWithClaude(pages);
+    timings.aiParsing = Date.now() - startAiParsing;
+
+    timings.total = Date.now() - startTotal;
+
+    console.log('[TIMING] Performance breakdown:');
+    console.log(`  - Form data parsing: ${timings.formData}ms`);
+    console.log(`  - Buffer conversion: ${timings.buffer}ms`);
+    console.log(`  - PDF extraction: ${timings.pdfExtraction}ms`);
+    console.log(`  - Page splitting: ${timings.pageSplit}ms`);
+    console.log(`  - AI parsing: ${timings.aiParsing}ms`);
+    console.log(`  - TOTAL: ${timings.total}ms`);
 
     if (parsedStatement.transactions.length === 0) {
       return NextResponse.json(
@@ -83,6 +107,7 @@ export async function POST(request: NextRequest) {
         transaction_count: parsedStatement.transactions.length,
         file_name: file.name,
       },
+      _timings: timings,
     });
   } catch (error) {
     // Handle specific error types

@@ -24,7 +24,12 @@
       "Bash(then echo \"File exists\")",
       "Bash(cat:*)",
       "Bash(else echo \"File does not exist\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(git checkout:*)",
+      "Bash(npm install:*)",
+      "Bash(dir:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(if exist nul del /F nul)"
     ],
     "deny": [],
     "ask": []

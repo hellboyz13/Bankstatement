@@ -117,6 +117,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
       // Upload each file
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        const fileStartTime = Date.now();
 
         // Validate file type
         if (file.type !== 'application/pdf') {
@@ -134,22 +135,32 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         // Choose parser endpoint based on toggle
         const endpoint = useClaudeParser ? '/api/parse-statement' : '/api/upload-local';
 
+        console.log(`[CLIENT TIMING] Starting upload for ${file.name} (${(file.size / 1024).toFixed(2)}KB) using ${useClaudeParser ? 'AI' : 'Legacy'} parser`);
+
+        const parseStartTime = Date.now();
         const response = await fetch(endpoint, {
           method: 'POST',
           body: formData,
         });
 
         const data = await response.json();
+        const parseTime = Date.now() - parseStartTime;
+
+        console.log(`[CLIENT TIMING] Parse API call took ${parseTime}ms`);
+        if (data._timings) {
+          console.log(`[CLIENT TIMING] Server timings:`, data._timings);
+        }
 
         if (!response.ok) {
           throw new Error(`${file.name}: ${data.error || 'Upload failed'}`);
         }
 
-        console.log(`Upload successful (${useClaudeParser ? 'Claude AI' : 'Legacy'}): ${file.name}`, data);
-
         // Handle response based on parser type
         if (useClaudeParser && data.success && data.statement) {
           // Claude parser response - need to store to local storage
+          console.log(`[CLIENT TIMING] Starting store operation`);
+          const storeStartTime = Date.now();
+
           const storeResponse = await fetch('/api/store-parsed-statement', {
             method: 'POST',
             headers: {
@@ -162,6 +173,9 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
           });
 
           const storeData = await storeResponse.json();
+          const storeTime = Date.now() - storeStartTime;
+
+          console.log(`[CLIENT TIMING] Store API call took ${storeTime}ms`);
 
           if (storeData.statement && storeData.transactions) {
             setUploadedData({
@@ -182,7 +196,9 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
               transaction_count: storeData.statement.transaction_count,
             };
             setStatements(prev => [...prev, newStatement]);
-            console.log('Added Claude-parsed statement to list:', newStatement);
+
+            const totalFileTime = Date.now() - fileStartTime;
+            console.log(`[CLIENT TIMING] ✅ TOTAL time for ${file.name}: ${totalFileTime}ms (Parse: ${parseTime}ms + Store: ${storeTime}ms)`);
           }
         } else if (data.statement && data.transactions) {
           // Legacy parser response
@@ -203,6 +219,9 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
             end_date: data.statement.end_date,
             transaction_count: data.statement.transaction_count,
           };
+
+          const totalFileTime = Date.now() - fileStartTime;
+          console.log(`[CLIENT TIMING] ✅ TOTAL time for ${file.name}: ${totalFileTime}ms (Legacy parser)`);
           setStatements(prev => [...prev, newStatement]);
           console.log('Added statement to list:', newStatement);
         }
