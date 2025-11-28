@@ -230,6 +230,11 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
           console.log(`[DEBUG] Data structure:`, { success: data.success, hasStatement: !!data.statement });
         }
 
+        // Check if parsing failed
+        if (useClaudeParser && !data) {
+          throw new Error('AI parsing failed or timed out. Please try again or use a smaller PDF.');
+        }
+
         if (useClaudeParser && data && data.success && data.statement) {
           // Claude parser response - need to store to local storage
           console.log(`[CLIENT TIMING] Starting store operation`);
@@ -445,26 +450,24 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
                 </span>
               )}
             </div>
-            <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-visible">
+            <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 h-3 rounded-full transition-all duration-500 ease-out relative"
+                className="bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 h-3 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${progress}%` }}
               >
                 <div className="h-full w-full animate-pulse opacity-50 bg-white/20"></div>
-                {/* Running dog animation */}
-                <div
-                  className="absolute -top-6 -right-2 text-2xl transition-all duration-500"
-                  style={{
-                    animation: 'bounce 0.5s infinite',
-                  }}
-                >
-                  🐕
-                </div>
               </div>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                Processing... Keep the dog running!
+                {progress < 5 && "📄 Reading PDF file..."}
+                {progress >= 5 && progress < 10 && "📊 Preparing data..."}
+                {progress >= 10 && progress < 30 && "🤖 AI analyzing page 1..."}
+                {progress >= 30 && progress < 50 && "🔍 Extracting transactions..."}
+                {progress >= 50 && progress < 70 && "💰 Processing amounts..."}
+                {progress >= 70 && progress < 90 && "📝 Categorizing expenses..."}
+                {progress >= 90 && progress < 100 && "✨ Finalizing results..."}
+                {progress >= 100 && "✅ Complete!"}
               </span>
               <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
                 {progress.toFixed(1)}%
@@ -472,17 +475,6 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
             </div>
           </div>
         )}
-
-        <style jsx>{`
-          @keyframes bounce {
-            0%, 100% {
-              transform: translateY(0);
-            }
-            50% {
-              transform: translateY(-10px);
-            }
-          }
-        `}</style>
 
         {/* Parser Toggle */}
         <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">

@@ -166,7 +166,7 @@ export async function parseBankStatementWithProgress(
           }],
           temperature: 0,
         }, {
-          timeout: 60000,
+          timeout: 120000, // Increased to 120 seconds (2 minutes) for slower connections
         });
 
         clearInterval(progressInterval);
