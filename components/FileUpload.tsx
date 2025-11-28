@@ -175,14 +175,19 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
 
               try {
                 const event = JSON.parse(jsonStr);
+                console.log(`[SSE] Received event:`, event.type, `progress: ${event.progress}%`);
 
-                if (event.type === 'estimate') {
+                if (event.type === 'status') {
+                  setProgressMessage(event.message);
+                  setProgress(event.progress);
+                } else if (event.type === 'estimate') {
                   if (event.estimatedTime !== undefined) {
                     setEstimatedTime(event.estimatedTime);
                   }
                   setProgressMessage(event.message);
                   setProgress(event.progress);
                 } else if (event.type === 'progress') {
+                  console.log(`[SSE] Setting progress to ${event.progress}%`);
                   setProgress(event.progress);
                   setProgressMessage(event.message);
                   if (event.estimatedTimeRemaining !== undefined) {

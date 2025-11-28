@@ -128,43 +128,71 @@ export async function parseBankStatementWithProgress(
         ? Math.round((chunks.length - index) * avgTimePerChunk)
         : undefined;
 
+      const startProgress = 10 + (index / chunks.length) * 80;
+      const endProgress = 10 + ((index + 1) / chunks.length) * 80;
+      const progressRange = endProgress - startProgress;
+
       onProgress({
-        progress: 10 + (index / chunks.length) * 80,
+        progress: startProgress,
         message: `Analyzing chunk ${index + 1} of ${chunks.length}...`,
         currentChunk: index + 1,
         totalChunks: chunks.length,
         estimatedTimeRemaining,
       });
 
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{
-          role: 'user',
-          content: `${PARSING_SYSTEM_PROMPT}\n\nBank statement text:\n${chunkText}`,
-        }],
-        temperature: 0,
-      }, {
-        timeout: 60000,
-      });
+      // Create a promise for the API call and a progress simulator
+      let currentSimulatedProgress = startProgress;
+      const progressInterval = setInterval(() => {
+        // Simulate progress by incrementing slowly (80% of the range)
+        currentSimulatedProgress = Math.min(
+          currentSimulatedProgress + (progressRange * 0.1),
+          startProgress + (progressRange * 0.8)
+        );
+        onProgress({
+          progress: currentSimulatedProgress,
+          message: `Analyzing chunk ${index + 1} of ${chunks.length}...`,
+          currentChunk: index + 1,
+          totalChunks: chunks.length,
+          estimatedTimeRemaining,
+        });
+      }, 1000); // Update every second
 
-      const responseText = completion.choices[0]?.message?.content || '';
-      const parsed = parseTextToJSON(responseText);
-      chunkResults.push(parsed);
+      try {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: `${PARSING_SYSTEM_PROMPT}\n\nBank statement text:\n${chunkText}`,
+          }],
+          temperature: 0,
+        }, {
+          timeout: 60000,
+        });
 
-      completedChunks++;
-      const chunkTime = Date.now() - chunkStartTime;
-      totalChunkTime += chunkTime;
+        clearInterval(progressInterval);
 
-      const avgTime = totalChunkTime / completedChunks;
-      const remainingTime = Math.round((chunks.length - completedChunks) * avgTime);
+        const responseText = completion.choices[0]?.message?.content || '';
+        const parsed = parseTextToJSON(responseText);
+        chunkResults.push(parsed);
 
-      onProgress({
-        progress: 10 + (completedChunks / chunks.length) * 80,
-        message: `Chunk ${completedChunks}/${chunks.length} complete (${parsed.transactions?.length || 0} transactions)`,
-        currentChunk: completedChunks,
-        totalChunks: chunks.length,
-        estimatedTimeRemaining: remainingTime,
-      });
+        completedChunks++;
+        const chunkTime = Date.now() - chunkStartTime;
+        totalChunkTime += chunkTime;
+
+        const avgTime = totalChunkTime / completedChunks;
+        const remainingTime = Math.round((chunks.length - completedChunks) * avgTime);
+
+        onProgress({
+          progress: 10 + (completedChunks / chunks.length) * 80,
+          message: `Chunk ${completedChunks}/${chunks.length} complete (${parsed.transactions?.length || 0} transactions)`,
+          currentChunk: completedChunks,
+          totalChunks: chunks.length,
+          estimatedTimeRemaining: remainingTime,
+        });
+      } catch (error) {
+        clearInterval(progressInterval);
+        throw error;
+      }
     }
 
     // Merge results
