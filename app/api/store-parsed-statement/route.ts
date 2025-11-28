@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
       balance: t.balance || null,
       // Use AI-assigned category if available, otherwise fall back to keyword-based categorization
       category: t.category || categorizeTransaction(t.description, t.amount),
+      // Include fraud detection fields from AI parser
+      fraud_likelihood: t.fraud_likelihood ?? 0.0,
+      fraud_reason: t.fraud_reason || 'Normal transaction',
       created_at: new Date().toISOString(),
       bank_name: statement.bank_name,
       file_name: statement.file_name,

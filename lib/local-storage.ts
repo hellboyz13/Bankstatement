@@ -10,6 +10,8 @@ interface StoredTransaction {
   currency: string;
   balance: number | null;
   category: string;
+  fraud_likelihood?: number | null;
+  fraud_reason?: string | null;
   created_at: string;
   bank_name: string | null;
   file_name: string | null;

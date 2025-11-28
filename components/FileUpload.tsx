@@ -44,6 +44,9 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
   const [progressMessage, setProgressMessage] = useState('');
   const [estimatedTime, setEstimatedTime] = useState<number | null>(null);
 
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState(false);
+
   // Don't fetch from server on mount - server storage is unreliable in dev mode
   // Statements will be added directly from upload responses
 
@@ -105,10 +108,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
+  const processFiles = async (files: FileList) => {
     // Validate free plan can only upload 1 file
     if (isFreeUser && files.length > 1) {
       setError('Free plan allows uploading only 1 file at a time. Please select 1 PDF file.');
@@ -361,14 +361,57 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
 
       // Don't fetch from server - we're managing statements locally now
       // await fetchStatements();
-
-      // Reset form
-      e.target.value = '';
     } catch (err) {
       console.error('Upload error:', err);
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    await processFiles(files);
+
+    // Reset form
+    e.target.value = '';
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!uploading && canUpload) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set dragging to false if we're leaving the drop zone itself
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (!canUpload || uploading) return;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await processFiles(files);
     }
   };
 
@@ -466,22 +509,51 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
       <h2 className="text-xl font-semibold mb-4 text-black dark:text-white smooth-transition">Upload Bank Statement</h2>
 
       <div className="space-y-4">
-        <div>
-          <label
-            htmlFor="file"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            PDF Statement
-          </label>
+        {/* Drag and Drop Zone */}
+        <div
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          className={`relative border-4 border-dashed rounded-xl p-16 text-center transition-all duration-300 min-h-[300px] flex items-center justify-center ${
+            isDragging
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 scale-102 shadow-xl'
+              : 'border-gray-300 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700/50 dark:to-gray-800/50 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg'
+          } ${uploading || !canUpload ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        >
           <input
             type="file"
             id="file"
             accept="application/pdf"
             onChange={handleFileChange}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="hidden"
             disabled={uploading || !canUpload}
             multiple={!isFreeUser}
           />
+          <label
+            htmlFor="file"
+            className={`flex flex-col items-center gap-6 w-full ${uploading || !canUpload ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+          >
+            <div className={`text-7xl transition-all duration-300 ${isDragging ? 'scale-125 rotate-12' : 'scale-100'}`}>
+              📄
+            </div>
+            <div className="space-y-3">
+              <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                {isDragging ? 'Drop PDF Here!' : 'Choose File or Drag & Drop'}
+              </p>
+              <p className="text-base text-gray-600 dark:text-gray-300 font-medium">
+                {isDragging ? 'Release to upload' : 'Click to browse or drag your PDF file here'}
+              </p>
+              <div className="pt-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400 inline-block px-4 py-2 bg-white dark:bg-gray-700 rounded-full border border-gray-300 dark:border-gray-600">
+                  {isFreeUser ? '📌 Max 1 file • Up to 10MB • PDF only' : '📌 Multiple files • Up to 10MB each • PDF only'}
+                </p>
+              </div>
+            </div>
+          </label>
+          {isDragging && (
+            <div className="absolute inset-0 bg-blue-500/10 rounded-xl pointer-events-none animate-pulse border-4 border-blue-400" />
+          )}
         </div>
 
         {/* Progress Bar */}
@@ -550,7 +622,6 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         </div>
 
         {/* Statement Navigation Tabs */}
-        {console.log('Rendering FileUpload - statements.length:', statements.length, 'statements:', statements)}
         {statements.length > 0 && (
           <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-blue-300 dark:border-blue-600">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">📂 Your Uploaded Statements ({statements.length})</h3>

@@ -6,15 +6,54 @@ const PARSING_SYSTEM_PROMPT = `Extract all transactions from this bank statement
 - Description
 - Amount (negative for debits/payments, positive for credits/deposits)
 - Balance (if shown)
-- Category (groceries, transport, dining, utilities, shopping, entertainment, transfer, salary, or other)
+- Category: Use ONE of these globally-applicable categories (NO country-specific brands):
+  * Food & Beverage (restaurants, cafes, bars, bakeries)
+  * Groceries (supermarkets, grocery stores)
+  * Transport (taxi, public transport, fuel, parking, tolls)
+  * Shopping – General Retail (department stores, convenience stores)
+  * Shopping – Fashion & Apparel (clothing, shoes, bags, jewelry - non-luxury)
+  * Shopping – Electronics & Technology (electronics, computers, phones)
+  * Shopping – Luxury & High-End (designer brands, luxury boutiques)
+  * Health & Medical (hospitals, clinics, pharmacies)
+  * Beauty & Personal Care (salons, spas, cosmetics)
+  * Entertainment & Leisure (cinemas, concerts, games, streaming)
+  * Travel (flights, hotels, tours, travel agencies)
+  * Bills & Utilities (electricity, water, internet, phone bills)
+  * Subscriptions & Digital Services (streaming, cloud, software, apps)
+  * Insurance (life, health, travel, car, home insurance)
+  * Education (schools, courses, tuition)
+  * Home & Living (furniture, home decor, appliances)
+  * Sports & Fitness (gyms, sports equipment)
+  * Pets (pet supplies, vet services)
+  * Family & Kids (baby products, toys, childcare)
+  * Financial – Fees & Charges (bank fees, card fees, ATM fees)
+  * Investments (brokerage, stocks, crypto)
+  * Donations & Charity (non-profits, charitable contributions)
+  * Government & Taxes (taxes, fines, licenses, permits)
+  * Credit Card Payment (payments to reduce card balance)
+  * Refund / Reversal (merchant refunds, cancellations)
+  * Bank Credits (cashback, rewards, promotional credits)
+  * True Income (salary, wages, business income)
+  * Unknown Incoming (unidentified positive transactions)
+  * Miscellaneous / Others (when nothing else fits)
+- Fraud Score (0.0 to 1.0): Assess fraud likelihood based on:
+  * Unusual transaction amount for merchant/category
+  * Merchant type inconsistent with cardholder behavior
+  * High-frequency transactions in short period
+  * Unusual timing (late night, overseas when user is domestic)
+  * Do NOT flag refunds or card payments as fraud
+  * Only consider completed charges, not pending
+- Fraud Reason: Brief explanation (e.g., "Large unusual amount", "Overseas merchant", "Normal spending pattern")
 
-Also identify: bank name, currency, account type (credit/debit/savings).
+Also identify: bank name, currency, account type (credit_card/current/savings).
 
-Format each transaction as one line: DATE | DESCRIPTION | AMOUNT | BALANCE | CATEGORY
+Format each transaction as one line: DATE | DESCRIPTION | AMOUNT | BALANCE | CATEGORY | FRAUD_SCORE | FRAUD_REASON
 
-Example:
-2024-01-15 | WALMART PURCHASE | -45.50 | 1234.56 | groceries
-2024-01-16 | SALARY DEPOSIT | 3000.00 | 4234.56 | salary`;
+Examples:
+2024-01-15 | Local Restaurant ABC | -45.50 | 1234.56 | Food & Beverage | 0.05 | Normal dining expense
+2024-01-16 | Salary Deposit | 3000.00 | 4234.56 | True Income | 0.0 | Regular income
+2024-01-17 | Refund - Store XYZ | 120.00 | 4354.56 | Refund / Reversal | 0.0 | Legitimate refund
+2024-01-18 | Unknown Merchant Overseas | -850.00 | 3504.56 | Miscellaneous / Others | 0.75 | Large overseas transaction, unusual pattern`;
 
 /**
  * Parse plain text AI response into structured JSON
@@ -45,7 +84,7 @@ function parseTextToJSON(text: string): ClaudePageResponse {
     const parts = line.split('|').map(p => p.trim());
     if (parts.length < 3) continue;
 
-    const [date, description, amountStr, balanceStr, category] = parts;
+    const [date, description, amountStr, balanceStr, category, fraudScoreStr, fraudReason] = parts;
 
     // Validate date format
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
@@ -54,6 +93,7 @@ function parseTextToJSON(text: string): ClaudePageResponse {
     if (isNaN(amount)) continue;
 
     const balance = balanceStr ? parseFloat(balanceStr.replace(/[^0-9.-]/g, '')) : null;
+    const fraudScore = fraudScoreStr ? parseFloat(fraudScoreStr.replace(/[^0-9.]/g, '')) : 0.0;
 
     transactions.push({
       date,
@@ -61,7 +101,9 @@ function parseTextToJSON(text: string): ClaudePageResponse {
       amount,
       currency: currency || 'USD',
       balance: !isNaN(balance!) ? balance : null,
-      category: category || 'other',
+      category: category || 'Miscellaneous / Others',
+      fraud_likelihood: !isNaN(fraudScore) ? Math.min(Math.max(fraudScore, 0), 1) : 0.0,
+      fraud_reason: fraudReason || 'Normal transaction',
     });
   }
 

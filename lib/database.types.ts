@@ -49,6 +49,8 @@ export interface Database {
           currency: string | null
           balance: number | null
           category: string | null
+          fraud_likelihood: number | null
+          fraud_reason: string | null
           created_at: string
         }
         Insert: {
@@ -60,6 +62,8 @@ export interface Database {
           currency?: string | null
           balance?: number | null
           category?: string | null
+          fraud_likelihood?: number | null
+          fraud_reason?: string | null
           created_at?: string
         }
         Update: {
@@ -71,6 +75,8 @@ export interface Database {
           currency?: string | null
           balance?: number | null
           category?: string | null
+          fraud_likelihood?: number | null
+          fraud_reason?: string | null
           created_at?: string
         }
       }
@@ -86,6 +92,8 @@ export interface Database {
           currency: string | null
           balance: number | null
           category: string | null
+          fraud_likelihood: number | null
+          fraud_reason: string | null
           created_at: string | null
           bank_name: string | null
           file_name: string | null
