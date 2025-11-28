@@ -56,8 +56,15 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
 
   console.log(`[AI TIMING] Combined ${pages.length} pages (${combinedText.length} chars) in ${combineTime}ms`);
 
+  // Warn if input is very large
+  if (combinedText.length > 50000) {
+    console.warn(`[AI TIMING] WARNING: Large input (${combinedText.length} chars) - this may be slow`);
+  }
+
   try {
     const startApiCall = Date.now();
+
+    // Use gpt-4o-mini with higher limits and timeout
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -71,12 +78,22 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
         },
       ],
       temperature: 0,
-      max_tokens: 16000,
+      max_completion_tokens: 16000, // Use max_completion_tokens instead of max_tokens
       response_format: { type: "json_object" },
+    }, {
+      timeout: 60000, // 60 second timeout in options
     });
     const apiCallTime = Date.now() - startApiCall;
 
     console.log(`[AI TIMING] OpenAI API call completed in ${apiCallTime}ms`);
+    console.log(`[AI TIMING] Finish reason: ${completion.choices[0]?.finish_reason}`);
+    console.log(`[AI TIMING] Token usage: ${JSON.stringify(completion.usage)}`);
+
+    // Check if response was truncated
+    if (completion.choices[0]?.finish_reason === 'length') {
+      console.error(`[AI TIMING] ERROR: Response was truncated due to token limit!`);
+      throw new Error('Response too large - PDF has too many transactions. Try splitting into smaller files.');
+    }
 
     const startParse = Date.now();
     const responseText = completion.choices[0]?.message?.content || '';
