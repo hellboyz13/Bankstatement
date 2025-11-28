@@ -1,9 +1,14 @@
 import { NextRequest } from 'next/server';
-import { parsePDFToText } from '@/lib/pdf-parser';
 import { parseBankStatementWithProgress } from '@/lib/claudeParserStream';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+// Dynamic import for pdf-parse
+const getPdfParse = async () => {
+  const pdfParse = await import('pdf-parse');
+  return pdfParse.default;
+};
 
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
@@ -29,8 +34,18 @@ export async function POST(request: NextRequest) {
 
         // Extract text from PDF
         const buffer = Buffer.from(await file.arrayBuffer());
-        const extractedText = await parsePDFToText(buffer);
-        const pages = extractedText.split('\n\n--- PAGE BREAK ---\n\n').filter(p => p.trim());
+        const pdf = await getPdfParse();
+        const pdfData = await pdf(buffer);
+
+        // Split by pages
+        const pages: string[] = [];
+        if (pdfData.numpages && pdfData.numpages > 1) {
+          // Try to split by page markers if available
+          const pageTexts = pdfData.text.split(/\f+/); // Form feed character often separates pages
+          pages.push(...pageTexts.filter((p: string) => p.trim()));
+        } else {
+          pages.push(pdfData.text);
+        }
 
         // Estimate time (23 seconds per page based on your data)
         const estimatedTimePerPage = 23000; // milliseconds
