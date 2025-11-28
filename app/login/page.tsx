@@ -64,7 +64,19 @@ export default function LoginPage() {
   };
 
   const handleLocalDemo = () => {
-    // Skip authentication for localhost - just go to dashboard
+    // Create a demo user for localhost development
+    const demoUser = {
+      id: 'demo-user-localhost',
+      email: 'demo@localhost.dev',
+      plan: 'premium' as const,
+      uploadCount: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Store demo user in localStorage
+    localStorage.setItem('currentUser', JSON.stringify(demoUser));
+
+    // Navigate to dashboard
     router.push('/dashboard');
   };
 
