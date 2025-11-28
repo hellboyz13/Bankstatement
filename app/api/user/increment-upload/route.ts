@@ -22,17 +22,24 @@ export async function POST(request: NextRequest) {
 
     // For other users, check if they exist in Supabase by looking up their email
     const { supabase } = await import('@/lib/supabase');
-    const { data: userCheck } = await supabase
+    const { data: userCheck, error: checkError } = await supabase
       .from('users')
       .select('email')
       .eq('id', userId)
       .maybeSingle();
 
+    // If user doesn't exist in Supabase, treat as demo user
+    if (!userCheck || checkError) {
+      console.log('User not found in Supabase, treating as demo user:', userId);
+      return NextResponse.json({
+        success: true,
+        message: 'Demo mode - upload count tracked locally',
+      });
+    }
+
     // If user has google-demo.com email or localhost.dev, they're a demo user
-    if (userCheck && (
-      userCheck.email?.includes('@google-demo.com') ||
-      userCheck.email?.includes('@localhost.dev')
-    )) {
+    if (userCheck.email?.includes('@google-demo.com') ||
+        userCheck.email?.includes('@localhost.dev')) {
       return NextResponse.json({
         success: true,
         message: 'Demo mode - upload count tracked locally',
