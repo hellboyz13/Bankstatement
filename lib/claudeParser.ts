@@ -49,71 +49,89 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
     apiKey,
   });
 
-  // Combine all pages into one text block for single API call
-  const startCombine = Date.now();
-  const combinedText = pages.join('\n\n--- PAGE BREAK ---\n\n');
-  const combineTime = Date.now() - startCombine;
+  // Process pages in parallel chunks to avoid timeout
+  const CHUNK_SIZE = 2; // Process 2 pages at a time
+  const chunks: string[][] = [];
 
-  console.log(`[AI TIMING] Combined ${pages.length} pages (${combinedText.length} chars) in ${combineTime}ms`);
-
-  // Warn if input is very large
-  if (combinedText.length > 50000) {
-    console.warn(`[AI TIMING] WARNING: Large input (${combinedText.length} chars) - this may be slow`);
+  for (let i = 0; i < pages.length; i += CHUNK_SIZE) {
+    chunks.push(pages.slice(i, i + CHUNK_SIZE));
   }
+
+  console.log(`[AI TIMING] Processing ${pages.length} pages in ${chunks.length} parallel chunks`);
 
   try {
     const startApiCall = Date.now();
 
-    // Use gpt-4o-mini with higher limits and timeout
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: PARSING_SYSTEM_PROMPT,
-        },
-        {
-          role: 'user',
-          content: combinedText,
-        },
-      ],
-      temperature: 0,
-      max_completion_tokens: 16000, // Use max_completion_tokens instead of max_tokens
-      response_format: { type: "json_object" },
-    }, {
-      timeout: 60000, // 60 second timeout in options
+    // Process all chunks in parallel
+    const chunkPromises = chunks.map(async (chunk, index) => {
+      const chunkText = chunk.join('\n\n--- PAGE BREAK ---\n\n');
+      console.log(`[AI TIMING] Chunk ${index + 1}/${chunks.length}: ${chunkText.length} chars`);
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: PARSING_SYSTEM_PROMPT,
+          },
+          {
+            role: 'user',
+            content: chunkText,
+          },
+        ],
+        temperature: 0,
+        max_completion_tokens: 8000,
+        response_format: { type: "json_object" },
+      }, {
+        timeout: 30000, // 30 second timeout per chunk
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '';
+      return JSON.parse(responseText) as ClaudePageResponse;
     });
+
+    // Wait for all chunks to complete
+    const chunkResults = await Promise.all(chunkPromises);
     const apiCallTime = Date.now() - startApiCall;
 
-    console.log(`[AI TIMING] OpenAI API call completed in ${apiCallTime}ms`);
-    console.log(`[AI TIMING] Finish reason: ${completion.choices[0]?.finish_reason}`);
-    console.log(`[AI TIMING] Token usage: ${JSON.stringify(completion.usage)}`);
+    console.log(`[AI TIMING] All ${chunks.length} chunks completed in ${apiCallTime}ms`);
 
-    // Check if response was truncated
-    if (completion.choices[0]?.finish_reason === 'length') {
-      console.error(`[AI TIMING] ERROR: Response was truncated due to token limit!`);
-      throw new Error('Response too large - PDF has too many transactions. Try splitting into smaller files.');
+    // Merge all chunk results
+    const startMerge = Date.now();
+    const allTransactions: ParsedTransaction[] = [];
+    let meta = chunkResults[0]?.meta || {
+      bank_name: null,
+      country: null,
+      account_type: 'unknown' as const,
+      currency: null,
+    };
+
+    for (const result of chunkResults) {
+      if (result.transactions) {
+        allTransactions.push(...result.transactions);
+      }
+      // Update meta with first non-null values found
+      if (result.meta?.bank_name && !meta.bank_name) meta.bank_name = result.meta.bank_name;
+      if (result.meta?.country && !meta.country) meta.country = result.meta.country;
+      if (result.meta?.currency && !meta.currency) meta.currency = result.meta.currency;
+      if (result.meta?.account_type && result.meta.account_type !== 'unknown') {
+        meta.account_type = result.meta.account_type;
+      }
     }
 
-    const startParse = Date.now();
-    const responseText = completion.choices[0]?.message?.content || '';
-
-    // Parse JSON response
-    const parsedData: ClaudePageResponse = JSON.parse(responseText);
-
     // Validate and filter transactions
-    const validTransactions = parsedData.transactions.filter((txn) =>
+    const validTransactions = allTransactions.filter((txn) =>
       txn.date && txn.description && typeof txn.amount === 'number'
     );
-    const parseTime = Date.now() - startParse;
+    const mergeTime = Date.now() - startMerge;
 
     const totalTime = Date.now() - startTime;
 
-    console.log(`[AI TIMING] JSON parsing & validation: ${parseTime}ms`);
-    console.log(`[AI TIMING] Total AI processing: ${totalTime}ms (found ${validTransactions.length} transactions)`);
+    console.log(`[AI TIMING] Merged ${validTransactions.length} transactions in ${mergeTime}ms`);
+    console.log(`[AI TIMING] Total AI processing: ${totalTime}ms`);
 
     return {
-      meta: parsedData.meta,
+      meta,
       transactions: validTransactions,
     };
   } catch (error) {
