@@ -62,9 +62,25 @@ export default function DashboardPage() {
 
   const fetchStatements = useCallback(async () => {
     try {
-      const res = await fetch('/api/statements-local');
-      const data = await res.json();
-      setStatements(data.statements || []);
+      // Fetch statements directly from localStorage (client-side only)
+      const statementsStr = localStorage.getItem('bank_analyzer_statements');
+      const statements: Statement[] = statementsStr ? JSON.parse(statementsStr) : [];
+
+      // Add transaction count to each statement
+      const transactionsStr = localStorage.getItem('bank_analyzer_transactions');
+      const transactions: any[] = transactionsStr ? JSON.parse(transactionsStr) : [];
+
+      const statementsWithCount = statements.map((s: any) => ({
+        id: s.id,
+        bank_name: s.bank_name,
+        file_name: s.file_name,
+        uploaded_at: s.uploaded_at,
+        start_date: s.start_date,
+        end_date: s.end_date,
+        transaction_count: transactions.filter((t: any) => t.statement_id === s.id).length,
+      }));
+
+      setStatements(statementsWithCount);
     } catch (error) {
       console.error('Failed to fetch statements:', error);
     }
@@ -88,47 +104,9 @@ export default function DashboardPage() {
         console.log('[Dashboard] Session loaded successfully:', data);
         setLoadedSessionName(data.session.filename);
 
-        // Refresh statements
-        try {
-          const res = await fetch('/api/statements-local');
-          const statementsData = await res.json();
-          setStatements(statementsData.statements || []);
-        } catch (error) {
-          console.error('Failed to fetch statements:', error);
-        }
-
-        // Refresh data
-        try {
-          const params = new URLSearchParams();
-          if (filters.startDate) params.append('startDate', filters.startDate);
-          if (filters.endDate) params.append('endDate', filters.endDate);
-          if (filters.category !== 'all')
-            params.append('category', filters.category);
-          if (selectedStatementId !== 'all')
-            params.append('statementId', selectedStatementId);
-
-          const transactionsRes = await fetch(
-            `/api/transactions-local?${params.toString()}`
-          );
-          const transactionsData = await transactionsRes.json();
-
-          const analyticsParams = new URLSearchParams();
-          if (filters.startDate)
-            analyticsParams.append('startDate', filters.startDate);
-          if (filters.endDate) analyticsParams.append('endDate', filters.endDate);
-          if (selectedStatementId !== 'all')
-            analyticsParams.append('statementId', selectedStatementId);
-
-          const analyticsRes = await fetch(
-            `/api/analytics-local?${analyticsParams.toString()}`
-          );
-          const analyticsData = await analyticsRes.json();
-
-          setTransactions(transactionsData.transactions || []);
-          setAnalytics(analyticsData);
-        } catch (error) {
-          console.error('Failed to fetch data:', error);
-        }
+        // Refresh statements and data from localStorage
+        await fetchStatements();
+        await fetchData();
       } else {
         console.error('[Dashboard] Failed to load session:', data.error);
       }
@@ -144,32 +122,85 @@ export default function DashboardPage() {
     setLoading(true);
 
     try {
-      const params = new URLSearchParams();
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
-      if (filters.category !== 'all')
-        params.append('category', filters.category);
-      if (selectedStatementId !== 'all')
-        params.append('statementId', selectedStatementId);
+      // Fetch transactions directly from localStorage (client-side only)
+      const transactionsStr = localStorage.getItem('bank_analyzer_transactions');
+      let allTransactions: Transaction[] = transactionsStr ? JSON.parse(transactionsStr) : [];
 
-      const transactionsRes = await fetch(
-        `/api/transactions-local?${params.toString()}`
+      // Apply filters on client side
+      let filteredTransactions = allTransactions;
+
+      if (selectedStatementId !== 'all') {
+        filteredTransactions = filteredTransactions.filter(
+          (t: any) => t.statement_id === selectedStatementId
+        );
+      }
+
+      if (filters.startDate) {
+        filteredTransactions = filteredTransactions.filter(
+          (t) => t.date >= filters.startDate
+        );
+      }
+
+      if (filters.endDate) {
+        filteredTransactions = filteredTransactions.filter(
+          (t) => t.date <= filters.endDate
+        );
+      }
+
+      if (filters.category && filters.category !== 'all') {
+        filteredTransactions = filteredTransactions.filter(
+          (t) => t.category === filters.category
+        );
+      }
+
+      setTransactions(filteredTransactions);
+
+      // Calculate analytics client-side
+      const income = filteredTransactions
+        .filter((t) => t.amount > 0)
+        .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
+
+      const expenses = Math.abs(
+        filteredTransactions
+          .filter((t) => t.amount < 0)
+          .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0)
       );
-      const transactionsData = await transactionsRes.json();
 
-      const analyticsParams = new URLSearchParams();
-      if (filters.startDate)
-        analyticsParams.append('startDate', filters.startDate);
-      if (filters.endDate) analyticsParams.append('endDate', filters.endDate);
-      if (selectedStatementId !== 'all')
-        analyticsParams.append('statementId', selectedStatementId);
+      const byCategory: Record<string, number> = {};
+      filteredTransactions
+        .filter((t) => t.amount < 0)
+        .forEach((t) => {
+          const category = t.category || 'Miscellaneous';
+          byCategory[category] =
+            (byCategory[category] || 0) + Math.abs(parseFloat(t.amount.toString()));
+        });
 
-      const analyticsRes = await fetch(
-        `/api/analytics-local?${analyticsParams.toString()}`
-      );
-      const analyticsData = await analyticsRes.json();
+      const byMonth: Record<string, { income: number; expenses: number }> = {};
+      filteredTransactions.forEach((t) => {
+        const month = t.date.substring(0, 7);
+        if (!byMonth[month]) {
+          byMonth[month] = { income: 0, expenses: 0 };
+        }
 
-      setTransactions(transactionsData.transactions || []);
+        const amount = parseFloat(t.amount.toString());
+        if (amount > 0) {
+          byMonth[month].income += amount;
+        } else {
+          byMonth[month].expenses += Math.abs(amount);
+        }
+      });
+
+      const analyticsData = {
+        summary: {
+          totalIncome: income,
+          totalExpenses: expenses,
+          netSavings: income - expenses,
+          transactionCount: filteredTransactions.length,
+        },
+        byCategory,
+        byMonth,
+      };
+
       setAnalytics(analyticsData);
     } catch (error) {
       console.error('Failed to fetch data:', error);
