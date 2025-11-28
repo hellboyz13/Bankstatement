@@ -284,7 +284,30 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
             console.error('[DEBUG] Store response missing statement or transactions:', storeData);
           }
         } else if (data.statement && data.transactions) {
-          // Legacy parser response
+          // Legacy parser response - save to localStorage
+          console.log(`[DEBUG] Legacy parser - saving ${data.transactions.length} transactions to localStorage`);
+
+          // Save statement to localStorage
+          const statements = JSON.parse(localStorage.getItem('bank_analyzer_statements') || '[]');
+          const statementToSave = {
+            id: data.statement.id,
+            bank_name: data.statement.bank_name,
+            file_name: data.statement.file_name,
+            uploaded_at: new Date().toISOString(),
+            start_date: data.statement.start_date,
+            end_date: data.statement.end_date,
+            created_at: new Date().toISOString(),
+          };
+          statements.push(statementToSave);
+          localStorage.setItem('bank_analyzer_statements', JSON.stringify(statements));
+
+          // Save transactions to localStorage
+          const existingTransactions = JSON.parse(localStorage.getItem('bank_analyzer_transactions') || '[]');
+          existingTransactions.push(...data.transactions);
+          localStorage.setItem('bank_analyzer_transactions', JSON.stringify(existingTransactions));
+
+          console.log(`[DEBUG] Saved to localStorage - ${data.transactions.length} transactions`);
+
           setUploadedData({
             filename: data.statement.file_name,
             transactions: data.transactions,
