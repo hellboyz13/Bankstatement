@@ -13,11 +13,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if this is a localhost demo user
-    const isDemoUser = userId === 'demo-user-localhost' || userId.startsWith('google_user_');
+    if (userId === 'demo-user-localhost') {
+      return NextResponse.json({
+        success: true,
+        message: 'Demo mode - upload count tracked locally',
+      });
+    }
 
-    if (isDemoUser) {
-      // For demo users, just return success without updating Supabase
-      // The upload count is tracked locally in localStorage via AuthContext
+    // For other users, check if they exist in Supabase by looking up their email
+    const { supabase } = await import('@/lib/supabase');
+    const { data: userCheck } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', userId)
+      .maybeSingle();
+
+    // If user has google-demo.com email or localhost.dev, they're a demo user
+    if (userCheck && (
+      userCheck.email?.includes('@google-demo.com') ||
+      userCheck.email?.includes('@localhost.dev')
+    )) {
       return NextResponse.json({
         success: true,
         message: 'Demo mode - upload count tracked locally',
@@ -27,7 +42,6 @@ export async function POST(request: NextRequest) {
     await incrementUploadCount(userId);
 
     // Fetch updated user to return
-    const { supabase } = await import('@/lib/supabase');
     const { data: userData, error } = await supabase
       .from('users')
       .select('*')
