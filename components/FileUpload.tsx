@@ -336,17 +336,18 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
     setSuccess(null);
 
     try {
-      console.log('[FileUpload] Fetching all transactions for session save');
+      console.log('[FileUpload] Fetching all transactions for session save from localStorage');
 
-      // Fetch ALL transactions from server (not just uploaded data)
-      const transactionsRes = await fetch('/api/transactions-local');
-      const transactionsData = await transactionsRes.json();
+      // Get transactions directly from localStorage (client-side only)
+      const transactionsKey = 'bank_analyzer_transactions';
+      const transactionsStr = localStorage.getItem(transactionsKey);
+      const allTransactions = transactionsStr ? JSON.parse(transactionsStr) : [];
 
-      if (!transactionsData.transactions || transactionsData.transactions.length === 0) {
-        throw new Error('No transactions found to save');
+      if (!allTransactions || allTransactions.length === 0) {
+        throw new Error('No transactions found to save. Please upload a statement first.');
       }
 
-      console.log('[FileUpload] Saving', transactionsData.transactions.length, 'transactions');
+      console.log('[FileUpload] Saving', allTransactions.length, 'transactions');
 
       // Get the date range from all statements
       const allStatements = statements;
@@ -372,7 +373,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         body: JSON.stringify({
           userId: user.id,
           filename: sessionFilename,
-          transactions: transactionsData.transactions,
+          transactions: allTransactions,
           statementStartDate: startDates[0] || null,
           statementEndDate: endDates[endDates.length - 1] || null,
         }),
@@ -444,21 +445,44 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
                 </span>
               )}
             </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+            <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-visible">
               <div
-                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-1000 ease-linear"
+                className="bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 h-3 rounded-full transition-all duration-500 ease-out relative"
                 style={{ width: `${progress}%` }}
               >
                 <div className="h-full w-full animate-pulse opacity-50 bg-white/20"></div>
+                {/* Running dog animation */}
+                <div
+                  className="absolute -top-6 -right-2 text-2xl transition-all duration-500"
+                  style={{
+                    animation: 'bounce 0.5s infinite',
+                  }}
+                >
+                  🐕
+                </div>
               </div>
             </div>
-            <div className="text-right">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Processing... Keep the dog running!
+              </span>
               <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                {Math.round(progress)}%
+                {progress.toFixed(1)}%
               </span>
             </div>
           </div>
         )}
+
+        <style jsx>{`
+          @keyframes bounce {
+            0%, 100% {
+              transform: translateY(0);
+            }
+            50% {
+              transform: translateY(-10px);
+            }
+          }
+        `}</style>
 
         {/* Parser Toggle */}
         <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">

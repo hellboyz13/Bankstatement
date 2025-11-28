@@ -20,10 +20,14 @@ export async function POST(request: NextRequest) {
       .from('users')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    if (!userData) {
+      throw new Error('User not found after increment');
     }
 
     const updatedUser = {
