@@ -45,9 +45,13 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
     throw new Error('OPENAI_API_KEY environment variable is not set');
   }
 
+  console.log('[AI TIMING] Initializing OpenAI client...');
   const openai = new OpenAI({
     apiKey,
+    timeout: 20000, // Global 20 second timeout
+    maxRetries: 0, // Disable retries - fail fast
   });
+  console.log('[AI TIMING] OpenAI client ready');
 
   // Process pages in parallel chunks to avoid timeout
   const CHUNK_SIZE = 2; // Process 2 pages at a time
@@ -67,27 +71,37 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
       const chunkText = chunk.join('\n\n--- PAGE BREAK ---\n\n');
       console.log(`[AI TIMING] Chunk ${index + 1}/${chunks.length}: ${chunkText.length} chars`);
 
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: PARSING_SYSTEM_PROMPT,
-          },
-          {
-            role: 'user',
-            content: chunkText,
-          },
-        ],
-        temperature: 0,
-        max_completion_tokens: 8000,
-        response_format: { type: "json_object" },
-      }, {
-        timeout: 30000, // 30 second timeout per chunk
-      });
+      try {
+        const chunkStart = Date.now();
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: PARSING_SYSTEM_PROMPT,
+            },
+            {
+              role: 'user',
+              content: chunkText,
+            },
+          ],
+          temperature: 0,
+          max_completion_tokens: 8000,
+          response_format: { type: "json_object" },
+        }, {
+          timeout: 15000, // 15 second timeout per chunk - fail fast if slow
+        });
+        const chunkTime = Date.now() - chunkStart;
 
-      const responseText = completion.choices[0]?.message?.content || '';
-      return JSON.parse(responseText) as ClaudePageResponse;
+        console.log(`[AI TIMING] Chunk ${index + 1} completed in ${chunkTime}ms`);
+        console.log(`[AI TIMING] Chunk ${index + 1} finish_reason: ${completion.choices[0]?.finish_reason}`);
+
+        const responseText = completion.choices[0]?.message?.content || '';
+        return JSON.parse(responseText) as ClaudePageResponse;
+      } catch (chunkError) {
+        console.error(`[AI TIMING] Chunk ${index + 1} FAILED:`, chunkError instanceof Error ? chunkError.message : chunkError);
+        throw chunkError;
+      }
     });
 
     // Wait for all chunks to complete
@@ -135,6 +149,10 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
       transactions: validTransactions,
     };
   } catch (error) {
+    console.error('[AI TIMING] FATAL ERROR:', error);
+    if (error instanceof Error) {
+      console.error('[AI TIMING] Error stack:', error.stack);
+    }
     throw new Error(`Parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
