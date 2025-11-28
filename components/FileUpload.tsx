@@ -440,7 +440,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
       console.log('[FileUpload] Session saved successfully:', result);
 
       // Show success message with refresh instruction
-      setSuccess(`✅ Session "${sessionFilename}" saved successfully with ${transactionsData.transactions.length} transactions! Go to Profile page and click Refresh to see it.`);
+      setSuccess(`✅ Session "${sessionFilename}" saved successfully with ${allTransactions.length} transactions! Go to Profile page and click Refresh to see it.`);
 
       // Clear uploaded data after successful save
       setUploadedData(null);

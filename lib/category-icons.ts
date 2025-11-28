@@ -91,5 +91,33 @@ export const categoryIcons: Record<string, CategoryIcon> = {
 };
 
 export function getCategoryIcon(category: string): CategoryIcon {
-  return categoryIcons[category] || categoryIcons['Miscellaneous'];
+  // Handle case-insensitive lookups and normalize category names
+  const normalized = category.toLowerCase().trim();
+
+  // Map common lowercase names to proper category keys
+  const categoryMap: Record<string, string> = {
+    'dining': 'Food & Dining',
+    'food': 'Food & Dining',
+    'food & dining': 'Food & Dining',
+    'transport': 'Transport',
+    'shopping': 'Shopping',
+    'entertainment': 'Entertainment',
+    'groceries': 'Groceries',
+    'other': 'Miscellaneous',
+    'miscellaneous': 'Miscellaneous',
+  };
+
+  // Try mapped category first
+  const mappedCategory = categoryMap[normalized];
+  if (mappedCategory && categoryIcons[mappedCategory]) {
+    return categoryIcons[mappedCategory];
+  }
+
+  // Try exact match
+  if (categoryIcons[category]) {
+    return categoryIcons[category];
+  }
+
+  // Default to miscellaneous
+  return categoryIcons['Miscellaneous'];
 }

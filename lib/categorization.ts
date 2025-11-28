@@ -291,8 +291,8 @@ export function getAllCategories(): TransactionCategory[] {
 /**
  * Get category color for visualization
  */
-export function getCategoryColor(category: TransactionCategory): string {
-  const colors: Record<TransactionCategory, string> = {
+export function getCategoryColor(category: TransactionCategory | string): string {
+  const colors: Record<string, string> = {
     'Food & Dining': '#FF6B6B',
     'Transport': '#4ECDC4',
     'Shopping': '#45B7D1',
@@ -304,9 +304,17 @@ export function getCategoryColor(category: TransactionCategory): string {
     'Education': '#6C5CE7',
     'Transfers': '#A29BFE',
     'Miscellaneous': '#95A5A6',
+    // Lowercase mappings for AI-parsed categories
+    'dining': '#FF6B6B',
+    'food': '#FF6B6B',
+    'transport': '#4ECDC4',
+    'shopping': '#45B7D1',
+    'entertainment': '#A8E6CF',
+    'groceries': '#FF6B6B',
+    'other': '#95A5A6',
   };
 
-  return colors[category];
+  return colors[category] || colors['Miscellaneous'];
 }
 
 /**
