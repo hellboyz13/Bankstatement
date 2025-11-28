@@ -259,6 +259,30 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
           console.log(`[DEBUG] Store response has ${storeData.transactions?.length || 0} transactions`);
 
           if (storeData.statement && storeData.transactions) {
+            // CRITICAL: Save to localStorage on CLIENT-SIDE (API route runs on server and can't access localStorage)
+            console.log(`[DEBUG] Claude parser - saving ${storeData.transactions.length} transactions to localStorage`);
+
+            // Save statement to localStorage
+            const statements = JSON.parse(localStorage.getItem('bank_analyzer_statements') || '[]');
+            const statementToSave = {
+              id: storeData.statement.id,
+              bank_name: storeData.statement.bank_name || data.statement?.meta?.bank_name,
+              file_name: storeData.statement.file_name,
+              uploaded_at: new Date().toISOString(),
+              start_date: storeData.statement.start_date,
+              end_date: storeData.statement.end_date,
+              created_at: new Date().toISOString(),
+            };
+            statements.push(statementToSave);
+            localStorage.setItem('bank_analyzer_statements', JSON.stringify(statements));
+            console.log(`[DEBUG] Saved statement to localStorage. Total statements: ${statements.length}`);
+
+            // Save transactions to localStorage
+            const existingTransactions = JSON.parse(localStorage.getItem('bank_analyzer_transactions') || '[]');
+            existingTransactions.push(...storeData.transactions);
+            localStorage.setItem('bank_analyzer_transactions', JSON.stringify(existingTransactions));
+            console.log(`[DEBUG] Saved to localStorage - ${storeData.transactions.length} transactions. Total: ${existingTransactions.length}`);
+
             setUploadedData({
               filename: storeData.statement.file_name,
               transactions: storeData.transactions,
