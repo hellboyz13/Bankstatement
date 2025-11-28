@@ -1,35 +1,80 @@
 import OpenAI from 'openai';
 import type { ParsedStatement, ClaudePageResponse, ParsedTransaction } from './types/parsed-statement';
 
-const PARSING_SYSTEM_PROMPT = `Parse bank statement text into JSON. Extract ALL transactions with dates and amounts. Be lenient.
+const PARSING_SYSTEM_PROMPT = `Extract all transactions from this bank statement. For each transaction, provide:
+- Date (YYYY-MM-DD format)
+- Description
+- Amount (negative for debits/payments, positive for credits/deposits)
+- Balance (if shown)
+- Category (groceries, transport, dining, utilities, shopping, entertainment, transfer, salary, or other)
 
-Output schema:
-{
-  "meta": {
-    "bank_name": "string|null",
-    "country": "string|null",
-    "account_type": "current|savings|credit_card|unknown",
-    "currency": "string|null"
-  },
-  "transactions": [{
-    "date": "YYYY-MM-DD",
-    "posting_date": "YYYY-MM-DD|null",
-    "description": "string",
-    "amount": 0.0,
-    "currency": "string|null",
-    "type": "debit|credit|payment|fee|interest|refund|unknown",
-    "balance": 0.0,
-    "category": "string",
-    "category_confidence": 0.0
-  }]
+Also identify: bank name, currency, account type (credit/debit/savings).
+
+Format each transaction as one line: DATE | DESCRIPTION | AMOUNT | BALANCE | CATEGORY
+
+Example:
+2024-01-15 | WALMART PURCHASE | -45.50 | 1234.56 | groceries
+2024-01-16 | SALARY DEPOSIT | 3000.00 | 4234.56 | salary`;
+
+/**
+ * Parse plain text AI response into structured JSON
+ */
+function parseTextToJSON(text: string): ClaudePageResponse {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+  // Extract metadata from first few lines
+  let bank_name = null;
+  let currency = null;
+  let account_type: 'credit' | 'debit' | 'savings' | 'unknown' = 'unknown';
+
+  const bankMatch = text.match(/bank[:\s]+([^\n,]+)/i);
+  if (bankMatch) bank_name = bankMatch[1].trim();
+
+  const currencyMatch = text.match(/currency[:\s]+([A-Z]{3})/i);
+  if (currencyMatch) currency = currencyMatch[1];
+
+  const accountMatch = text.match(/account\s+type[:\s]+(credit|debit|savings)/i);
+  if (accountMatch) account_type = accountMatch[1].toLowerCase() as any;
+
+  // Parse transactions (lines with pipe separators)
+  const transactions: ParsedTransaction[] = [];
+
+  for (const line of lines) {
+    if (!line.includes('|')) continue;
+
+    const parts = line.split('|').map(p => p.trim());
+    if (parts.length < 3) continue;
+
+    const [date, description, amountStr, balanceStr, category] = parts;
+
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+
+    const amount = parseFloat(amountStr.replace(/[^0-9.-]/g, ''));
+    if (isNaN(amount)) continue;
+
+    const balance = balanceStr ? parseFloat(balanceStr.replace(/[^0-9.-]/g, '')) : null;
+
+    transactions.push({
+      date,
+      description: description || 'Unknown',
+      amount,
+      currency: currency || 'USD',
+      balance: !isNaN(balance!) ? balance : null,
+      category: category || 'other',
+    });
+  }
+
+  return {
+    meta: {
+      bank_name,
+      country: null,
+      account_type,
+      currency,
+    },
+    transactions,
+  };
 }
-
-Rules:
-- Normalize dates to YYYY-MM-DD
-- Debits negative, credits positive
-- Categories: "Food & Dining", "Transport", "Shopping", "Bills & Utilities", "Salary & Income", "Healthcare", "Entertainment", "Travel", "Education", "Transfers", "Miscellaneous"
-- Use merchant knowledge for smart categorization (e.g., Grab=Transport, NTUC=Food & Dining, Netflix=Bills & Utilities)
-- Return only valid JSON, no markdown`;
 
 /**
  * Parse bank statement pages using GPT-4o-mini
@@ -37,81 +82,147 @@ Rules:
  * @returns Unified ParsedStatement with all transactions
  */
 export async function parseBankStatementWithClaude(pages: string[]): Promise<ParsedStatement> {
+  console.log('\n========================================');
+  console.log('[DEBUG] parseBankStatementWithClaude() called');
+  console.log('[DEBUG] Input: pages array with', pages.length, 'pages');
+  console.log('[DEBUG] Total input size:', pages.join('').length, 'characters');
+  console.log('========================================\n');
+
   const startTime = Date.now();
 
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
+    console.error('[DEBUG] ERROR: OPENAI_API_KEY not found in environment');
     throw new Error('OPENAI_API_KEY environment variable is not set');
   }
 
+  console.log('[DEBUG] Environment check:');
+  console.log('  - OPENAI_API_KEY found:', apiKey ? 'YES' : 'NO');
+  console.log('  - API key length:', apiKey?.length, 'chars');
+  console.log('  - API key prefix:', apiKey?.substring(0, 10) + '...');
+  console.log('  - Node environment:', process.env.NODE_ENV);
+  console.log('');
+
   console.log('[AI TIMING] Initializing OpenAI client...');
+
+  console.log('[DEBUG] Creating OpenAI client with config:');
+  console.log('  - Model: gpt-4o-mini');
+  console.log('  - Timeout: 90000ms (90 seconds)');
+  console.log('  - Max retries: 0 (disabled)');
+  console.log('  - Server mode: true');
+  console.log('');
+
   const openai = new OpenAI({
     apiKey,
-    timeout: 20000, // Global 20 second timeout
+    timeout: 90000, // Global 90 second timeout (increased for slow connections)
     maxRetries: 0, // Disable retries - fail fast
+    dangerouslyAllowBrowser: false, // Ensure we're in server mode
   });
-  console.log('[AI TIMING] OpenAI client ready');
+  console.log('[AI TIMING] ✓ OpenAI client initialized successfully\n');
+  console.log('[DEBUG] SKIPPING WARMUP - Going directly to parsing for maximum speed\n');
 
   // Process pages in parallel chunks to avoid timeout
   const CHUNK_SIZE = 2; // Process 2 pages at a time
   const chunks: string[][] = [];
 
+  console.log('[DEBUG] ========================================');
+  console.log('[DEBUG] Preparing chunks for parallel processing...');
+  console.log('[DEBUG] Chunk configuration: CHUNK_SIZE =', CHUNK_SIZE, 'pages per chunk');
+
   for (let i = 0; i < pages.length; i += CHUNK_SIZE) {
-    chunks.push(pages.slice(i, i + CHUNK_SIZE));
+    const chunk = pages.slice(i, i + CHUNK_SIZE);
+    chunks.push(chunk);
+    console.log(`[DEBUG] Chunk ${chunks.length}: pages ${i + 1}-${Math.min(i + CHUNK_SIZE, pages.length)} (${chunk.length} pages, ${chunk.join('').length} chars)`);
   }
 
   console.log(`[AI TIMING] Processing ${pages.length} pages in ${chunks.length} parallel chunks`);
+  console.log('[DEBUG] Strategy: All chunks will be processed simultaneously for maximum speed');
+  console.log('[DEBUG] ========================================\n');
 
   try {
     const startApiCall = Date.now();
+    console.log('[DEBUG] ========================================');
+    console.log('[DEBUG] Starting parallel chunk processing...');
+    console.log('[DEBUG] Total API call budget: 90000ms (90 seconds global timeout)');
+    console.log('[DEBUG] Per-chunk timeout: 60000ms (60 seconds)');
+    console.log('[DEBUG] Max completion tokens: UNLIMITED (no restrictions)');
+    console.log('[DEBUG] Output format: Plain text with pipe separators (faster than JSON)');
+    console.log('[DEBUG] ========================================\n');
 
     // Process all chunks in parallel
     const chunkPromises = chunks.map(async (chunk, index) => {
       const chunkText = chunk.join('\n\n--- PAGE BREAK ---\n\n');
+      console.log(`[DEBUG] ----------------------------------------`);
+      console.log(`[DEBUG] Chunk ${index + 1}/${chunks.length} - Starting processing`);
       console.log(`[AI TIMING] Chunk ${index + 1}/${chunks.length}: ${chunkText.length} chars`);
+      console.log(`[DEBUG] Chunk ${index + 1} contains ${chunk.length} page(s)`);
+
+      const chunkStart = Date.now(); // Move outside try block so catch can access it
 
       try {
-        const chunkStart = Date.now();
+        console.log(`[DEBUG] Chunk ${index + 1} - Sending request to OpenAI API...`);
+
         const completion = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [
             {
-              role: 'system',
-              content: PARSING_SYSTEM_PROMPT,
-            },
-            {
               role: 'user',
-              content: chunkText,
+              content: `${PARSING_SYSTEM_PROMPT}\n\nBank statement text:\n${chunkText}`,
             },
           ],
           temperature: 0,
-          max_completion_tokens: 8000,
-          response_format: { type: "json_object" },
+          // No max_completion_tokens - let AI generate freely without limits
         }, {
-          timeout: 15000, // 15 second timeout per chunk - fail fast if slow
+          timeout: 60000, // Increased to 60 seconds to accommodate slower connections
         });
         const chunkTime = Date.now() - chunkStart;
 
-        console.log(`[AI TIMING] Chunk ${index + 1} completed in ${chunkTime}ms`);
-        console.log(`[AI TIMING] Chunk ${index + 1} finish_reason: ${completion.choices[0]?.finish_reason}`);
+        console.log(`[AI TIMING] ✓ Chunk ${index + 1} completed in ${chunkTime}ms`);
+        console.log(`[DEBUG] Chunk ${index + 1} finish_reason: ${completion.choices[0]?.finish_reason}`);
+        console.log(`[DEBUG] Chunk ${index + 1} tokens used: ${completion.usage?.total_tokens || 'unknown'} (prompt: ${completion.usage?.prompt_tokens || '?'}, completion: ${completion.usage?.completion_tokens || '?'})`);
 
         const responseText = completion.choices[0]?.message?.content || '';
-        return JSON.parse(responseText) as ClaudePageResponse;
+        console.log(`[DEBUG] Chunk ${index + 1} raw response length: ${responseText.length} chars`);
+        console.log(`[DEBUG] Chunk ${index + 1} raw response preview: ${responseText.substring(0, 200)}...`);
+
+        console.log(`[DEBUG] Chunk ${index + 1} - Parsing plain text response into JSON...`);
+        const parsed = parseTextToJSON(responseText);
+        console.log(`[DEBUG] Chunk ${index + 1} - Successfully parsed ${parsed.transactions?.length || 0} transactions`);
+        console.log(`[DEBUG] Chunk ${index + 1} - Meta: bank=${parsed.meta?.bank_name || 'unknown'}, currency=${parsed.meta?.currency || 'unknown'}`);
+        console.log(`[DEBUG] ----------------------------------------\n`);
+
+        return parsed;
       } catch (chunkError) {
-        console.error(`[AI TIMING] Chunk ${index + 1} FAILED:`, chunkError instanceof Error ? chunkError.message : chunkError);
+        const chunkTime = Date.now() - chunkStart;
+        console.error(`[DEBUG] ========================================`);
+        console.error(`[AI TIMING] ✗ Chunk ${index + 1} FAILED after ${chunkTime}ms`);
+        console.error(`[DEBUG] Chunk ${index + 1} error:`, chunkError instanceof Error ? chunkError.message : chunkError);
+        console.error(`[DEBUG] Chunk ${index + 1} error type:`, chunkError instanceof Error ? chunkError.constructor.name : typeof chunkError);
+        if (chunkError instanceof Error && chunkError.stack) {
+          console.error(`[DEBUG] Chunk ${index + 1} error stack:`, chunkError.stack);
+        }
+        console.error(`[DEBUG] ========================================\n`);
         throw chunkError;
       }
     });
 
     // Wait for all chunks to complete
+    console.log('[DEBUG] ========================================');
+    console.log('[DEBUG] Waiting for all parallel chunks to complete...');
     const chunkResults = await Promise.all(chunkPromises);
     const apiCallTime = Date.now() - startApiCall;
 
-    console.log(`[AI TIMING] All ${chunks.length} chunks completed in ${apiCallTime}ms`);
+    console.log(`[AI TIMING] ✓ All ${chunks.length} chunks completed in ${apiCallTime}ms`);
+    console.log('[DEBUG] Average time per chunk:', Math.round(apiCallTime / chunks.length), 'ms');
+    console.log('[DEBUG] ========================================\n');
 
     // Merge all chunk results
     const startMerge = Date.now();
+    console.log('[DEBUG] ========================================');
+    console.log('[DEBUG] Starting merge phase...');
+    console.log('[DEBUG] Combining results from', chunkResults.length, 'chunks');
+
     const allTransactions: ParsedTransaction[] = [];
     let meta = chunkResults[0]?.meta || {
       bank_name: null,
@@ -120,39 +231,101 @@ export async function parseBankStatementWithClaude(pages: string[]): Promise<Par
       currency: null,
     };
 
-    for (const result of chunkResults) {
+    console.log('[DEBUG] Initial meta from chunk 1:', JSON.stringify(meta));
+
+    for (let i = 0; i < chunkResults.length; i++) {
+      const result = chunkResults[i];
+      const beforeCount = allTransactions.length;
+
       if (result.transactions) {
         allTransactions.push(...result.transactions);
+        console.log(`[DEBUG] Chunk ${i + 1}: Added ${result.transactions.length} transactions (total now: ${allTransactions.length})`);
+      } else {
+        console.log(`[DEBUG] Chunk ${i + 1}: No transactions found`);
       }
+
       // Update meta with first non-null values found
-      if (result.meta?.bank_name && !meta.bank_name) meta.bank_name = result.meta.bank_name;
-      if (result.meta?.country && !meta.country) meta.country = result.meta.country;
-      if (result.meta?.currency && !meta.currency) meta.currency = result.meta.currency;
+      if (result.meta?.bank_name && !meta.bank_name) {
+        meta.bank_name = result.meta.bank_name;
+        console.log(`[DEBUG] Updated bank_name from chunk ${i + 1}:`, meta.bank_name);
+      }
+      if (result.meta?.country && !meta.country) {
+        meta.country = result.meta.country;
+        console.log(`[DEBUG] Updated country from chunk ${i + 1}:`, meta.country);
+      }
+      if (result.meta?.currency && !meta.currency) {
+        meta.currency = result.meta.currency;
+        console.log(`[DEBUG] Updated currency from chunk ${i + 1}:`, meta.currency);
+      }
       if (result.meta?.account_type && result.meta.account_type !== 'unknown') {
         meta.account_type = result.meta.account_type;
+        console.log(`[DEBUG] Updated account_type from chunk ${i + 1}:`, meta.account_type);
       }
     }
 
-    // Validate and filter transactions
-    const validTransactions = allTransactions.filter((txn) =>
-      txn.date && txn.description && typeof txn.amount === 'number'
-    );
-    const mergeTime = Date.now() - startMerge;
+    console.log('[DEBUG] Total transactions before validation:', allTransactions.length);
 
+    // Validate and filter transactions
+    const validTransactions = allTransactions.filter((txn, index) => {
+      const isValid = txn.date && txn.description && typeof txn.amount === 'number';
+      if (!isValid) {
+        console.log(`[DEBUG] Invalid transaction at index ${index}:`, JSON.stringify(txn));
+      }
+      return isValid;
+    });
+
+    const invalidCount = allTransactions.length - validTransactions.length;
+    if (invalidCount > 0) {
+      console.log(`[DEBUG] Filtered out ${invalidCount} invalid transactions`);
+    }
+
+    const mergeTime = Date.now() - startMerge;
     const totalTime = Date.now() - startTime;
 
     console.log(`[AI TIMING] Merged ${validTransactions.length} transactions in ${mergeTime}ms`);
+    console.log('[DEBUG] Final meta:', JSON.stringify(meta));
+    console.log('[DEBUG] ========================================\n');
+
+    console.log('[DEBUG] ========================================');
+    console.log('[DEBUG] FINAL SUMMARY');
+    console.log('[DEBUG] ========================================');
     console.log(`[AI TIMING] Total AI processing: ${totalTime}ms`);
+    console.log(`[DEBUG] - Initialization: ~${apiCallTime < totalTime ? totalTime - apiCallTime - mergeTime : 0}ms`);
+    console.log(`[DEBUG] - API calls (parallel): ${apiCallTime}ms`);
+    console.log(`[DEBUG] - Merging results: ${mergeTime}ms`);
+    console.log(`[DEBUG] Total pages processed: ${pages.length}`);
+    console.log(`[DEBUG] Total chunks processed: ${chunks.length}`);
+    console.log(`[DEBUG] Total valid transactions: ${validTransactions.length}`);
+    console.log(`[DEBUG] Average processing time per page: ${Math.round(totalTime / pages.length)}ms`);
+    console.log('[DEBUG] ========================================\n');
 
     return {
       meta,
       transactions: validTransactions,
     };
   } catch (error) {
-    console.error('[AI TIMING] FATAL ERROR:', error);
+    const totalTime = Date.now() - startTime;
+    console.error('\n========================================');
+    console.error('[DEBUG] FATAL ERROR OCCURRED');
+    console.error('========================================');
+    console.error('[AI TIMING] FATAL ERROR after', totalTime, 'ms');
+    console.error('[DEBUG] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[DEBUG] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+
     if (error instanceof Error) {
-      console.error('[AI TIMING] Error stack:', error.stack);
+      console.error('[DEBUG] Error stack trace:');
+      console.error(error.stack);
     }
+
+    // Try to extract more context from the error
+    if (error && typeof error === 'object') {
+      const errorObj = error as any;
+      if (errorObj.code) console.error('[DEBUG] Error code:', errorObj.code);
+      if (errorObj.status) console.error('[DEBUG] HTTP status:', errorObj.status);
+      if (errorObj.response) console.error('[DEBUG] Response data:', JSON.stringify(errorObj.response).substring(0, 500));
+    }
+
+    console.error('========================================\n');
     throw new Error(`Parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

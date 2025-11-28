@@ -39,6 +39,11 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
   const [selectedStatementId, setSelectedStatementId] = useState<string | 'all'>('all');
   const [useClaudeParser, setUseClaudeParser] = useState(true); // Use Claude AI by default
 
+  // Progress tracking
+  const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
+  const [estimatedTime, setEstimatedTime] = useState<number | null>(null);
+
   // Don't fetch from server on mount - server storage is unreliable in dev mode
   // Statements will be added directly from upload responses
 
@@ -132,31 +137,87 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         const formData = new FormData();
         formData.append('file', file);
 
-        // Choose parser endpoint based on toggle
-        const endpoint = useClaudeParser ? '/api/parse-statement' : '/api/upload-local';
-
         console.log(`[CLIENT TIMING] Starting upload for ${file.name} (${(file.size / 1024).toFixed(2)}KB) using ${useClaudeParser ? 'AI' : 'Legacy'} parser`);
 
+        let data: any;
         const parseStartTime = Date.now();
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          body: formData,
-        });
 
-        const data = await response.json();
-        const parseTime = Date.now() - parseStartTime;
+        if (useClaudeParser) {
+          // Use streaming endpoint with progress
+          setProgress(0);
+          setProgressMessage('Uploading PDF...');
 
-        console.log(`[CLIENT TIMING] Parse API call took ${parseTime}ms`);
-        if (data._timings) {
-          console.log(`[CLIENT TIMING] Server timings:`, data._timings);
-        }
+          const response = await fetch('/api/parse-statement-stream', {
+            method: 'POST',
+            body: formData,
+          });
 
-        if (!response.ok) {
-          throw new Error(`${file.name}: ${data.error || 'Upload failed'}`);
+          if (!response.ok || !response.body) {
+            throw new Error(`${file.name}: Upload failed`);
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue;
+
+              const jsonStr = line.slice(6);
+              if (!jsonStr.trim()) continue;
+
+              try {
+                const event = JSON.parse(jsonStr);
+
+                if (event.type === 'estimate') {
+                  setEstimatedTime(event.estimatedTime);
+                  setProgressMessage(`${event.message} (Est. ${Math.round(event.estimatedTime / 1000)}s)`);
+                  setProgress(event.progress);
+                } else if (event.type === 'progress') {
+                  setProgress(event.progress);
+                  setProgressMessage(event.message);
+                  if (event.estimatedTimeRemaining) {
+                    setEstimatedTime(event.estimatedTimeRemaining);
+                  }
+                } else if (event.type === 'complete') {
+                  setProgress(100);
+                  setProgressMessage(event.message);
+                  data = { success: true, statement: event.statement };
+                } else if (event.type === 'error') {
+                  throw new Error(event.error);
+                }
+              } catch (parseError) {
+                console.error('Failed to parse SSE event:', parseError);
+              }
+            }
+          }
+
+          const parseTime = Date.now() - parseStartTime;
+          console.log(`[CLIENT TIMING] Parse API call took ${parseTime}ms with streaming`);
+        } else {
+          // Legacy parser without progress
+          const response = await fetch('/api/upload-local', {
+            method: 'POST',
+            body: formData,
+          });
+
+          data = await response.json();
+          const parseTime = Date.now() - parseStartTime;
+          console.log(`[CLIENT TIMING] Parse API call took ${parseTime}ms`);
+
+          if (!response.ok) {
+            throw new Error(`${file.name}: ${data.error || 'Upload failed'}`);
+          }
         }
 
         // Handle response based on parser type
-        if (useClaudeParser && data.success && data.statement) {
+        if (useClaudeParser && data && data.success && data.statement) {
           // Claude parser response - need to store to local storage
           console.log(`[CLIENT TIMING] Starting store operation`);
           const storeStartTime = Date.now();
@@ -353,11 +414,40 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
           />
         </div>
 
+        {/* Progress Bar */}
+        {uploading && progress > 0 && (
+          <div className="space-y-2 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg animate-slideInDown">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {progressMessage}
+              </span>
+              {estimatedTime !== null && estimatedTime > 0 && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  ~{Math.round(estimatedTime / 1000)}s remaining
+                </span>
+              )}
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              >
+                <div className="h-full w-full animate-pulse opacity-50 bg-white/20"></div>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                {Math.round(progress)}%
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Parser Toggle */}
         <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
           <div className="flex items-center gap-2">
             <label htmlFor="parser-toggle" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
-              🤖 Use AI Parser (Claude)
+              🤖 Use AI Parser (GPT-4o-mini)
             </label>
             <span className="text-xs text-gray-500 dark:text-gray-400">
               {useClaudeParser ? 'Universal support for all banks' : 'Legacy pattern-based parser'}
