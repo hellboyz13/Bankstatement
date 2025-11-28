@@ -1,0 +1,6 @@
+Add this to your package.json scripts section:
+
+"test:openai": "node --loader tsx test-openai-speed.js"
+
+Or just run directly:
+node test-openai-speed.js

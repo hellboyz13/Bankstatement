@@ -140,6 +140,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         console.log(`[CLIENT TIMING] Starting upload for ${file.name} (${(file.size / 1024).toFixed(2)}KB) using ${useClaudeParser ? 'AI' : 'Legacy'} parser`);
 
         let data: any;
+        let parseTime = 0;
         const parseStartTime = Date.now();
 
         if (useClaudeParser) {
@@ -176,13 +177,15 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
                 const event = JSON.parse(jsonStr);
 
                 if (event.type === 'estimate') {
-                  setEstimatedTime(event.estimatedTime);
-                  setProgressMessage(`${event.message} (Est. ${Math.round(event.estimatedTime / 1000)}s)`);
+                  if (event.estimatedTime !== undefined) {
+                    setEstimatedTime(event.estimatedTime);
+                  }
+                  setProgressMessage(event.message);
                   setProgress(event.progress);
                 } else if (event.type === 'progress') {
                   setProgress(event.progress);
                   setProgressMessage(event.message);
-                  if (event.estimatedTimeRemaining) {
+                  if (event.estimatedTimeRemaining !== undefined) {
                     setEstimatedTime(event.estimatedTimeRemaining);
                   }
                 } else if (event.type === 'complete') {
@@ -198,7 +201,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
             }
           }
 
-          const parseTime = Date.now() - parseStartTime;
+          parseTime = Date.now() - parseStartTime;
           console.log(`[CLIENT TIMING] Parse API call took ${parseTime}ms with streaming`);
         } else {
           // Legacy parser without progress
@@ -208,7 +211,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
           });
 
           data = await response.json();
-          const parseTime = Date.now() - parseStartTime;
+          parseTime = Date.now() - parseStartTime;
           console.log(`[CLIENT TIMING] Parse API call took ${parseTime}ms`);
 
           if (!response.ok) {
@@ -217,9 +220,15 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
         }
 
         // Handle response based on parser type
+        console.log(`[DEBUG] Upload complete - useClaudeParser: ${useClaudeParser}, data exists: ${!!data}`);
+        if (data) {
+          console.log(`[DEBUG] Data structure:`, { success: data.success, hasStatement: !!data.statement });
+        }
+
         if (useClaudeParser && data && data.success && data.statement) {
           // Claude parser response - need to store to local storage
           console.log(`[CLIENT TIMING] Starting store operation`);
+          console.log(`[DEBUG] Parsed statement has ${data.statement.transactions?.length || 0} transactions`);
           const storeStartTime = Date.now();
 
           const storeResponse = await fetch('/api/store-parsed-statement', {
@@ -237,6 +246,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
           const storeTime = Date.now() - storeStartTime;
 
           console.log(`[CLIENT TIMING] Store API call took ${storeTime}ms`);
+          console.log(`[DEBUG] Store response has ${storeData.transactions?.length || 0} transactions`);
 
           if (storeData.statement && storeData.transactions) {
             setUploadedData({
@@ -249,7 +259,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
 
             const newStatement: Statement = {
               id: storeData.statement.id,
-              bank_name: storeData.statement.bank_name || data.meta.bank_name,
+              bank_name: storeData.statement.bank_name || data.statement?.meta?.bank_name,
               file_name: storeData.statement.file_name,
               uploaded_at: new Date().toISOString(),
               start_date: storeData.statement.start_date,
@@ -260,6 +270,8 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
 
             const totalFileTime = Date.now() - fileStartTime;
             console.log(`[CLIENT TIMING] ✅ TOTAL time for ${file.name}: ${totalFileTime}ms (Parse: ${parseTime}ms + Store: ${storeTime}ms)`);
+          } else {
+            console.error('[DEBUG] Store response missing statement or transactions:', storeData);
           }
         } else if (data.statement && data.transactions) {
           // Legacy parser response
@@ -429,7 +441,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
             </div>
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-1000 ease-linear"
                 style={{ width: `${progress}%` }}
               >
                 <div className="h-full w-full animate-pulse opacity-50 bg-white/20"></div>

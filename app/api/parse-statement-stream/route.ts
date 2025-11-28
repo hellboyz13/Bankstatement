@@ -47,14 +47,9 @@ export async function POST(request: NextRequest) {
           pages.push(pdfData.text);
         }
 
-        // Estimate time (23 seconds per page based on your data)
-        const estimatedTimePerPage = 23000; // milliseconds
-        const totalEstimatedTime = pages.length * estimatedTimePerPage;
-
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({
           type: 'estimate',
           pages: pages.length,
-          estimatedTime: totalEstimatedTime,
           message: `Processing ${pages.length} page(s)...`,
           progress: 5
         })}\n\n`));

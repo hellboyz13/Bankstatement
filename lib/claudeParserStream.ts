@@ -103,20 +103,18 @@ export async function parseBankStatementWithProgress(
     chunks.push(pages.slice(i, i + CHUNK_SIZE));
   }
 
-  const estimatedTimePerChunk = 23000; // 23 seconds per chunk based on real data
-  const totalEstimatedTime = chunks.length * estimatedTimePerChunk;
-
+  // No initial time estimate - we'll calculate after first chunk
   onProgress({
     progress: 10,
     message: `Processing ${chunks.length} chunk(s)...`,
     totalChunks: chunks.length,
     currentChunk: 0,
-    estimatedTimeRemaining: totalEstimatedTime,
   });
 
   try {
     const chunkResults: ClaudePageResponse[] = [];
     let completedChunks = 0;
+    let totalChunkTime = 0;
 
     // Process chunks sequentially to show accurate progress
     for (let index = 0; index < chunks.length; index++) {
@@ -124,12 +122,18 @@ export async function parseBankStatementWithProgress(
       const chunkText = chunk.join('\n\n--- PAGE BREAK ---\n\n');
       const chunkStartTime = Date.now();
 
+      // Calculate estimated time based on actual performance
+      const avgTimePerChunk = completedChunks > 0 ? totalChunkTime / completedChunks : 0;
+      const estimatedTimeRemaining = avgTimePerChunk > 0
+        ? Math.round((chunks.length - index) * avgTimePerChunk)
+        : undefined;
+
       onProgress({
         progress: 10 + (index / chunks.length) * 80,
         message: `Analyzing chunk ${index + 1} of ${chunks.length}...`,
         currentChunk: index + 1,
         totalChunks: chunks.length,
-        estimatedTimeRemaining: (chunks.length - index) * estimatedTimePerChunk,
+        estimatedTimeRemaining,
       });
 
       const completion = await openai.chat.completions.create({
@@ -148,15 +152,18 @@ export async function parseBankStatementWithProgress(
       chunkResults.push(parsed);
 
       completedChunks++;
-      const avgTimePerChunk = (Date.now() - startTime) / completedChunks;
-      const remainingTime = (chunks.length - completedChunks) * avgTimePerChunk;
+      const chunkTime = Date.now() - chunkStartTime;
+      totalChunkTime += chunkTime;
+
+      const avgTime = totalChunkTime / completedChunks;
+      const remainingTime = Math.round((chunks.length - completedChunks) * avgTime);
 
       onProgress({
         progress: 10 + (completedChunks / chunks.length) * 80,
         message: `Chunk ${completedChunks}/${chunks.length} complete (${parsed.transactions?.length || 0} transactions)`,
         currentChunk: completedChunks,
         totalChunks: chunks.length,
-        estimatedTimeRemaining: Math.round(remainingTime),
+        estimatedTimeRemaining: remainingTime,
       });
     }
 

@@ -29,7 +29,8 @@
       "Bash(npm install:*)",
       "Bash(dir:*)",
       "Bash(npm uninstall:*)",
-      "Bash(if exist nul del /F nul)"
+      "Bash(if exist nul del /F nul)",
+      "Bash(node test-openai-direct.mjs:*)"
     ],
     "deny": [],
     "ask": []
