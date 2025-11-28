@@ -5,13 +5,10 @@ import {
   Bar,
   PieChart,
   Pie,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   Cell,
 } from 'recharts';
@@ -65,14 +62,6 @@ export default function AnalyticsCharts({
     })
   );
 
-  // Prepare monthly data for line chart
-  const monthlyData = Object.entries(data.byMonth)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, values]) => ({
-      month,
-      income: Math.round(values.income * 100) / 100,
-      expenses: Math.round(values.expenses * 100) / 100,
-    }));
 
   const formatCurrency = (value: number) => `$${value.toFixed(0)}`;
 
@@ -136,7 +125,19 @@ export default function AnalyticsCharts({
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '0.5rem', color: '#f3f4f6' }} />
+                <Tooltip
+                  formatter={(value: number) => formatCurrency(value)}
+                  contentStyle={{
+                    backgroundColor: '#ffffff',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '0.5rem',
+                    color: '#111827',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                  }}
+                  labelStyle={{ color: '#111827', fontWeight: 'bold', marginBottom: '4px' }}
+                />
               </PieChart>
             </ResponsiveContainer>
           ) : (
@@ -159,7 +160,19 @@ export default function AnalyticsCharts({
                   tick={{ fontSize: 12, fill: '#9ca3af' }}
                 />
                 <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '0.5rem', color: '#f3f4f6' }} />
+                <Tooltip
+                  formatter={(value: number) => formatCurrency(value)}
+                  contentStyle={{
+                    backgroundColor: '#ffffff',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '0.5rem',
+                    color: '#111827',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                  }}
+                  labelStyle={{ color: '#111827', fontWeight: 'bold', marginBottom: '4px' }}
+                />
                 <Bar dataKey="value" fill="#4F46E5">
                   {categoryData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -172,35 +185,6 @@ export default function AnalyticsCharts({
           )}
         </div>
 
-        {/* Monthly Trend Line Chart */}
-        {monthlyData.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md lg:col-span-2 animate-slideInUp hover-lift smooth-transition" style={{animationDelay: '0.2s'}}>
-            <h3 className="text-lg font-semibold mb-4 text-black dark:text-white">Monthly Trend</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '0.5rem', color: '#f3f4f6' }} />
-                <Legend wrapperStyle={{ color: '#9ca3af' }} />
-                <Line
-                  type="monotone"
-                  dataKey="income"
-                  stroke="#10B981"
-                  strokeWidth={2}
-                  name="Income"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="expenses"
-                  stroke="#EF4444"
-                  strokeWidth={2}
-                  name="Expenses"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
       </div>
     </div>
   );

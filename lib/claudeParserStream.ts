@@ -36,14 +36,22 @@ const PARSING_SYSTEM_PROMPT = `Extract all transactions from this bank statement
   * True Income (salary, wages, business income)
   * Unknown Incoming (unidentified positive transactions)
   * Miscellaneous / Others (when nothing else fits)
-- Fraud Score (0.0 to 1.0): Assess fraud likelihood based on:
-  * Unusual transaction amount for merchant/category
-  * Merchant type inconsistent with cardholder behavior
-  * High-frequency transactions in short period
-  * Unusual timing (late night, overseas when user is domestic)
-  * Do NOT flag refunds or card payments as fraud
-  * Only consider completed charges, not pending
-- Fraud Reason: Brief explanation (e.g., "Large unusual amount", "Overseas merchant", "Normal spending pattern")
+- Fraud Score (0.0 to 1.0): Assess fraud likelihood based on these patterns:
+  * MICRO-TRANSACTION TESTING: Extremely small amounts (0.01, 0.10, 1.00 or slight variations) - FLAG as 0.7-0.9
+  * RAPID-FIRE TESTING: Multiple micro transactions within minutes/seconds - FLAG as 0.8-0.95
+  * CARD VALIDATION ATTEMPTS: Repeated small charges from same merchant with amount variations - FLAG as 0.75-0.9
+  * DECLINE PATTERNS: Clusters of declined attempts followed by one successful low-value charge - FLAG as 0.85-0.95
+  * UNUSUAL LOCATIONS: Small transactions from foreign merchants/currencies not matching history - FLAG as 0.6-0.8
+  * MERCHANT CATEGORY MISMATCH: MCCs not aligning with typical usage patterns - FLAG as 0.5-0.7
+  * SUSPICIOUS MERCHANT NAMES: Generic, random, or unknown merchant names - FLAG as 0.6-0.8
+  * DIGITAL GOODS TESTING: Low-value digital goods transactions for card validation - FLAG as 0.7-0.85
+  * MULTI-MERCHANT TESTING: Multiple micro attempts across different merchants quickly - FLAG as 0.8-0.95
+  * LATE-NIGHT ACTIVITY: Any of the above occurring at unusual hours (2am-5am) - ADD 0.1-0.15 to score
+  * Unusual large transaction amount for merchant/category - FLAG as 0.5-0.7
+  * High-frequency normal transactions in short period - FLAG as 0.3-0.5
+  * Do NOT flag refunds, card payments, or pending transactions
+  * Only consider completed charges
+- Fraud Reason: Brief explanation (e.g., "Micro-transaction testing pattern", "Rapid card validation attempts", "Late-night foreign merchant testing", "Normal spending pattern")
 
 Also identify: bank name, currency, account type (credit_card/current/savings).
 

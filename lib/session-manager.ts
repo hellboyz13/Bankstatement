@@ -64,14 +64,22 @@ export async function createSession(
 export async function getUserSessions(userId: string): Promise<Session[]> {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Missing Supabase configuration');
     }
 
     console.log('[getUserSessions] Fetching sessions for user:', userId);
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('[getUserSessions] Using service role:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+    // Use service role key to bypass RLS (createClient automatically handles RLS bypass with service role)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
 
     const { data, error } = await supabase
       .from('sessions')
@@ -81,10 +89,12 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 
     if (error) {
       console.error('[getUserSessions] Error fetching sessions:', error);
+      console.error('[getUserSessions] Error details:', JSON.stringify(error, null, 2));
       return [];
     }
 
     console.log('[getUserSessions] Found sessions:', data);
+    console.log('[getUserSessions] Number of sessions:', data?.length || 0);
     return (data as Session[]) || [];
   } catch (error) {
     console.error('[getUserSessions] Error in getUserSessions:', error);
