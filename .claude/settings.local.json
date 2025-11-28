@@ -31,7 +31,12 @@
       "Bash(npm uninstall:*)",
       "Bash(if exist nul del /F nul)",
       "Bash(node test-openai-direct.mjs:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(then echo \"=== .env.local exists ===\")",
+      "Bash(else echo \".env.local does not exist\")",
+      "Bash(if [ -f .env ])",
+      "Bash(then echo \"=== .env exists ===\")",
+      "Bash(else echo \".env does not exist\")"
     ],
     "deny": [],
     "ask": []

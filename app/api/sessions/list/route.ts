@@ -7,6 +7,8 @@ export async function GET(request: NextRequest) {
   try {
     const userId = request.nextUrl.searchParams.get('userId');
 
+    console.log('[API /sessions/list] Received request for userId:', userId);
+
     if (!userId) {
       return NextResponse.json(
         { error: 'Missing userId parameter' },
@@ -14,14 +16,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log('[API /sessions/list] Calling getUserSessions...');
     const sessions = await getUserSessions(userId);
+    console.log('[API /sessions/list] getUserSessions returned:', sessions.length, 'sessions');
 
     return NextResponse.json({
       success: true,
       sessions,
     });
   } catch (error) {
-    console.error('Error fetching sessions:', error);
+    console.error('[API /sessions/list] Error fetching sessions:', error);
     return NextResponse.json(
       {
         error: 'Failed to fetch sessions',

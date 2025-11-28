@@ -37,7 +37,7 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
   const [sessionName, setSessionName] = useState('');
   const [statements, setStatements] = useState<Statement[]>([]);
   const [selectedStatementId, setSelectedStatementId] = useState<string | 'all'>('all');
-  const [useClaudeParser, setUseClaudeParser] = useState(true); // Use Claude AI by default
+  const useClaudeParser = true; // Always use AI Parser
 
   // Progress tracking
   const [progress, setProgress] = useState(0);
@@ -595,31 +595,6 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
           </div>
         )}
 
-        {/* Parser Toggle */}
-        <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="flex items-center gap-2">
-            <label htmlFor="parser-toggle" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
-              🤖 Use AI Parser (GPT-4o-mini)
-            </label>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {useClaudeParser ? 'Universal support for all banks' : 'Legacy pattern-based parser'}
-            </span>
-          </div>
-          <button
-            type="button"
-            id="parser-toggle"
-            onClick={() => setUseClaudeParser(!useClaudeParser)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-              useClaudeParser ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                useClaudeParser ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
 
         {/* Statement Navigation Tabs */}
         {statements.length > 0 && (
