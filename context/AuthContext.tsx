@@ -113,11 +113,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Call logout API if needed (future: Supabase signOut)
       setUser(null);
       localStorage.removeItem('currentUser');
+      // Clear all transaction and statement data
+      localStorage.removeItem('bank_analyzer_transactions');
+      localStorage.removeItem('bank_analyzer_statements');
     } catch (error) {
       console.error('Logout error:', error);
       // Clear local state even if API call fails
       setUser(null);
       localStorage.removeItem('currentUser');
+      localStorage.removeItem('bank_analyzer_transactions');
+      localStorage.removeItem('bank_analyzer_statements');
     }
   };
 

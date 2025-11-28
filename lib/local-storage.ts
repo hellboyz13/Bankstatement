@@ -1,5 +1,5 @@
-// Global in-memory storage for local testing (no database required)
-// This allows testing the app without Supabase
+// Browser localStorage implementation for persistent client-side storage
+// This allows data to persist across page refreshes and server restarts
 
 interface StoredTransaction {
   id: string;
@@ -25,64 +25,73 @@ interface StoredStatement {
   created_at: string;
 }
 
-// Declare global type
-declare global {
-  var localTransactions: any[] | undefined;
-  var localStatements: any[] | undefined;
+const TRANSACTIONS_KEY = 'bank_analyzer_transactions';
+const STATEMENTS_KEY = 'bank_analyzer_statements';
+
+// Helper to safely access localStorage (works in browser only)
+function getFromStorage<T>(key: string, defaultValue: T): T {
+  if (typeof window === 'undefined') return defaultValue;
+
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (error) {
+    console.error(`Error reading from localStorage (${key}):`, error);
+    return defaultValue;
+  }
 }
 
-// Initialize if not exists
-if (typeof global !== 'undefined') {
-  if (!global.localTransactions) {
-    global.localTransactions = [];
-  }
-  if (!global.localStatements) {
-    global.localStatements = [];
+function saveToStorage<T>(key: string, value: T): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Error saving to localStorage (${key}):`, error);
   }
 }
 
 export function addStatement(statement: StoredStatement) {
-  if (!global.localStatements) {
-    global.localStatements = [];
-  }
-  global.localStatements.push(statement);
+  const statements = getFromStorage<StoredStatement[]>(STATEMENTS_KEY, []);
+  statements.push(statement);
+  saveToStorage(STATEMENTS_KEY, statements);
 }
 
 export function addTransactions(transactions: StoredTransaction[]) {
-  if (!global.localTransactions) {
-    global.localTransactions = [];
-  }
-  global.localTransactions.push(...transactions);
+  const existing = getFromStorage<StoredTransaction[]>(TRANSACTIONS_KEY, []);
+  existing.push(...transactions);
+  saveToStorage(TRANSACTIONS_KEY, existing);
 }
 
 export function getTransactions(): StoredTransaction[] {
-  return global.localTransactions || [];
+  return getFromStorage<StoredTransaction[]>(TRANSACTIONS_KEY, []);
 }
 
 export function getStatements(): StoredStatement[] {
-  return global.localStatements || [];
+  return getFromStorage<StoredStatement[]>(STATEMENTS_KEY, []);
 }
 
 export function clearAll() {
-  global.localTransactions = [];
-  global.localStatements = [];
+  if (typeof window === 'undefined') return;
+
+  localStorage.removeItem(TRANSACTIONS_KEY);
+  localStorage.removeItem(STATEMENTS_KEY);
 }
 
 export function removeStatement(statementId: string) {
-  if (!global.localStatements) {
-    global.localStatements = [];
-  }
-  if (!global.localTransactions) {
-    global.localTransactions = [];
-  }
+  const statements = getFromStorage<StoredStatement[]>(STATEMENTS_KEY, []);
+  const transactions = getFromStorage<StoredTransaction[]>(TRANSACTIONS_KEY, []);
 
   // Remove the statement
-  global.localStatements = global.localStatements.filter(
+  const filteredStatements = statements.filter(
     (stmt: StoredStatement) => stmt.id !== statementId
   );
 
   // Remove all transactions associated with this statement
-  global.localTransactions = global.localTransactions.filter(
+  const filteredTransactions = transactions.filter(
     (txn: StoredTransaction) => txn.statement_id !== statementId
   );
+
+  saveToStorage(STATEMENTS_KEY, filteredStatements);
+  saveToStorage(TRANSACTIONS_KEY, filteredTransactions);
 }

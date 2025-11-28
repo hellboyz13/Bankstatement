@@ -1,16 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Import from upload-local to access the same in-memory storage
-// Note: This is a simple approach for testing. In production, use a proper database.
-
-// We'll create a simple global store
-declare global {
-  var localTransactions: any[] | undefined;
-}
-
-if (!global.localTransactions) {
-  global.localTransactions = [];
-}
+import { getTransactions, addTransactions } from '@/lib/local-storage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,8 +11,8 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const statementId = searchParams.get('statementId');
 
-    // Get all transactions from global store
-    let transactions = [...(global.localTransactions || [])];
+    // Get all transactions from localStorage
+    let transactions = getTransactions();
 
     // Filter by statement ID if specified
     if (statementId) {
@@ -64,11 +53,7 @@ export async function POST(request: NextRequest) {
   try {
     const { transactions } = await request.json();
 
-    if (!global.localTransactions) {
-      global.localTransactions = [];
-    }
-
-    global.localTransactions.push(...transactions);
+    addTransactions(transactions);
 
     return NextResponse.json({ success: true, count: transactions.length });
   } catch (error) {

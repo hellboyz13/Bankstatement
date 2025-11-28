@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTransactions } from '@/lib/local-storage';
 
 export const dynamic = 'force-dynamic';
-
-// Access global transactions
-declare global {
-  var localTransactions: any[] | undefined;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +10,8 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const statementId = searchParams.get('statementId');
 
-    // Get transactions
-    let transactions = [...(global.localTransactions || [])];
+    // Get transactions from localStorage
+    let transactions = getTransactions();
 
     // Filter by statement ID if specified
     if (statementId) {
