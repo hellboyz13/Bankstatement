@@ -209,8 +209,15 @@ export default function DashboardPage() {
     }
   }, [filters, selectedStatementId]);
 
-  // Note: Removed automatic clear-local on mount to preserve uploaded statement data
-  // Users can manually clear data if needed
+  // Clear localStorage when component unmounts (user navigates away)
+  useEffect(() => {
+    return () => {
+      // Cleanup when leaving dashboard
+      console.log('[Dashboard] Cleaning up transactions from localStorage');
+      localStorage.removeItem('bank_analyzer_transactions');
+      localStorage.removeItem('bank_analyzer_statements');
+    };
+  }, []);
 
   // Check for loadSession query parameter on mount
   useEffect(() => {

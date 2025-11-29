@@ -37,7 +37,8 @@
       "Bash(if [ -f .env ])",
       "Bash(then echo \"=== .env exists ===\")",
       "Bash(else echo \".env does not exist\")",
-      "Bash(node check-sessions.js:*)"
+      "Bash(node check-sessions.js:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []
