@@ -29,7 +29,22 @@ export async function createSession(
     }
 
     // Use service role key to bypass RLS for server-side operations
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false
+      },
+      db: {
+        schema: 'public'
+      },
+      global: {
+        headers: {
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`
+        }
+      }
+    });
 
     console.log('Creating session for user:', userId, 'filename:', filename);
 
@@ -73,11 +88,21 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
     console.log('[getUserSessions] Fetching sessions for user:', userId);
     console.log('[getUserSessions] Using service role:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-    // Use service role key to bypass RLS (createClient automatically handles RLS bypass with service role)
+    // Use service role key to bypass RLS
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
-        persistSession: false
+        persistSession: false,
+        detectSessionInUrl: false
+      },
+      db: {
+        schema: 'public'
+      },
+      global: {
+        headers: {
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`
+        }
       }
     });
 
