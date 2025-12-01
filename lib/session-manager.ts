@@ -20,11 +20,21 @@ export async function createSession(
   statementEndDate?: string
 ): Promise<Session | null> {
   try {
+    console.log('[createSession] Starting session creation...');
+    console.log('[createSession] userId:', userId);
+    console.log('[createSession] filename:', filename);
+    console.log('[createSession] transactions count:', transactions.length);
+    console.log('[createSession] statementStartDate:', statementStartDate);
+    console.log('[createSession] statementEndDate:', statementEndDate);
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+    console.log('[createSession] supabaseUrl:', supabaseUrl);
+    console.log('[createSession] Using service role key:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing Supabase configuration');
+      console.error('[createSession] Missing Supabase configuration');
       throw new Error('Missing Supabase configuration');
     }
 
@@ -46,32 +56,43 @@ export async function createSession(
       }
     });
 
-    console.log('Creating session for user:', userId, 'filename:', filename);
+    console.log('[createSession] Supabase client created, attempting insert...');
+
+    const dataToInsert = {
+      user_id: userId,
+      filename,
+      transaction_count: transactions.length,
+      statement_start_date: statementStartDate || null,
+      statement_end_date: statementEndDate || null,
+      transactions_data: transactions,
+    };
+
+    console.log('[createSession] Data to insert:', {
+      ...dataToInsert,
+      transactions_data: `[${transactions.length} transactions]`, // Don't log all transactions
+    });
 
     const { data, error } = await supabase
       .from('sessions')
-      .insert([
-        {
-          user_id: userId,
-          filename,
-          transaction_count: transactions.length,
-          statement_start_date: statementStartDate || null,
-          statement_end_date: statementEndDate || null,
-          transactions_data: transactions,
-        },
-      ])
+      .insert([dataToInsert])
       .select()
       .single();
 
     if (error) {
-      console.error('Supabase error creating session:', error);
+      console.error('[createSession] Supabase error creating session:', error);
+      console.error('[createSession] Error details:', JSON.stringify(error, null, 2));
       return null;
     }
 
-    console.log('Session created successfully:', data);
+    console.log('[createSession] Session created successfully!');
+    console.log('[createSession] Returned data:', data);
     return data as Session;
   } catch (error) {
-    console.error('Error in createSession:', error);
+    console.error('[createSession] Exception in createSession:', error);
+    if (error instanceof Error) {
+      console.error('[createSession] Error message:', error.message);
+      console.error('[createSession] Error stack:', error.stack);
+    }
     return null;
   }
 }
