@@ -108,6 +108,7 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 
     console.log('[getUserSessions] Fetching sessions for user:', userId);
     console.log('[getUserSessions] Using service role:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+    console.log('[getUserSessions] supabaseUrl:', supabaseUrl);
 
     // Use service role key to bypass RLS
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -127,6 +128,8 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
       }
     });
 
+    console.log('[getUserSessions] Executing query: SELECT * FROM sessions WHERE user_id =', userId);
+
     const { data, error } = await supabase
       .from('sessions')
       .select('*')
@@ -134,13 +137,27 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
       .order('upload_date', { ascending: false });
 
     if (error) {
-      console.error('[getUserSessions] Error fetching sessions:', error);
+      console.error('[getUserSessions] ❌ Error fetching sessions:', error);
+      console.error('[getUserSessions] Error code:', error.code);
+      console.error('[getUserSessions] Error message:', error.message);
       console.error('[getUserSessions] Error details:', JSON.stringify(error, null, 2));
       return [];
     }
 
-    console.log('[getUserSessions] Found sessions:', data);
+    console.log('[getUserSessions] ✅ Query successful!');
+    console.log('[getUserSessions] Raw data returned:', data);
     console.log('[getUserSessions] Number of sessions:', data?.length || 0);
+
+    if (data && data.length > 0) {
+      console.log('[getUserSessions] First session:', data[0]);
+    } else {
+      console.log('[getUserSessions] ⚠️ No sessions found for user:', userId);
+      console.log('[getUserSessions] This could mean:');
+      console.log('[getUserSessions]   1. Sessions table is empty for this user');
+      console.log('[getUserSessions]   2. RLS policy is blocking reads (even with service role)');
+      console.log('[getUserSessions]   3. user_id mismatch in database');
+    }
+
     return (data as Session[]) || [];
   } catch (error) {
     console.error('[getUserSessions] Error in getUserSessions:', error);
