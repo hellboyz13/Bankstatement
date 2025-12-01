@@ -61,6 +61,21 @@ export default function ProfilePage() {
 
     try {
       console.log('[Profile] Fetching sessions for user:', user.id);
+
+      // Check if this is a demo user
+      const isDemoUser = user.id === 'demo-user-localhost' || user.id.startsWith('google_user_');
+
+      if (isDemoUser) {
+        console.log('[Profile] Demo user - reading sessions from localStorage');
+        // For demo users, read from localStorage
+        const sessionsStr = localStorage.getItem('bank_analyzer_sessions');
+        const localSessions = sessionsStr ? JSON.parse(sessionsStr) : [];
+        console.log('[Profile] Found', localSessions.length, 'sessions in localStorage');
+        setSessions(localSessions);
+        return;
+      }
+
+      // For real users, fetch from API
       const response = await fetch(`/api/sessions/list?userId=${user.id}`);
       const data = await response.json();
 

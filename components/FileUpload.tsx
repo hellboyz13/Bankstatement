@@ -482,6 +482,16 @@ export default function FileUpload({ onUploadSuccess, canUpload = true, isFreeUs
 
       console.log('[FileUpload] Session saved successfully:', result);
 
+      // For demo users, save session to localStorage
+      if (result.isDemo && result.session) {
+        console.log('[FileUpload] Demo user - saving session to localStorage');
+        const sessionsStr = localStorage.getItem('bank_analyzer_sessions');
+        const sessions = sessionsStr ? JSON.parse(sessionsStr) : [];
+        sessions.push(result.session);
+        localStorage.setItem('bank_analyzer_sessions', JSON.stringify(sessions));
+        console.log('[FileUpload] Saved session to localStorage. Total sessions:', sessions.length);
+      }
+
       // Show success message with refresh instruction
       setSuccess(`✅ Session "${sessionFilename}" saved successfully with ${allTransactions.length} transactions! Go to Profile page and click Refresh to see it.`);
 

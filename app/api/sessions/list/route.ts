@@ -16,7 +16,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[API /sessions/list] Calling getUserSessions...');
+    // Check if this is a demo user (localhost or Google demo)
+    const isDemoUser = userId === 'demo-user-localhost' || userId.startsWith('google_user_');
+
+    if (isDemoUser) {
+      console.log('[API /sessions/list] Demo user detected - sessions stored in localStorage');
+      // For demo users, return empty array
+      // The client will read from localStorage directly
+      return NextResponse.json({
+        success: true,
+        sessions: [],
+        isDemo: true,
+      });
+    }
+
+    console.log('[API /sessions/list] Calling getUserSessions for real user...');
     const sessions = await getUserSessions(userId);
     console.log('[API /sessions/list] getUserSessions returned:', sessions.length, 'sessions');
 
