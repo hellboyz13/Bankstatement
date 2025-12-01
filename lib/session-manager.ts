@@ -130,6 +130,19 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 
     console.log('[getUserSessions] Executing query: SELECT * FROM sessions WHERE user_id =', userId);
 
+    // First, try to get ALL sessions without filter to see if table is readable
+    const { data: allData, error: allError } = await supabase
+      .from('sessions')
+      .select('*')
+      .limit(5);
+
+    console.log('[getUserSessions] Test query (ALL sessions, limit 5):', {
+      count: allData?.length || 0,
+      hasError: !!allError,
+      error: allError,
+      firstSession: allData?.[0]
+    });
+
     const { data, error } = await supabase
       .from('sessions')
       .select('*')
