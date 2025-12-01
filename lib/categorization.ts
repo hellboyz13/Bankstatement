@@ -1,52 +1,104 @@
-// Transaction categorization logic
+// Transaction categorization logic - Global categories (no country-specific brands)
 // Uses keyword-based rules to assign categories to transactions
 
 export type TransactionCategory =
-  | 'Food & Dining'
+  | 'Food & Beverage'
+  | 'Groceries'
   | 'Transport'
-  | 'Shopping'
-  | 'Bills & Utilities'
-  | 'Salary & Income'
-  | 'Healthcare'
-  | 'Entertainment'
+  | 'Shopping - General Retail'
+  | 'Shopping - Fashion & Apparel'
+  | 'Shopping - Electronics & Technology'
+  | 'Shopping - Luxury & High-End'
+  | 'Health & Medical'
+  | 'Beauty & Personal Care'
+  | 'Entertainment & Leisure'
   | 'Travel'
+  | 'Bills & Utilities'
+  | 'Subscriptions & Digital Services'
+  | 'Insurance'
   | 'Education'
-  | 'Transfers'
+  | 'Home & Living'
+  | 'Sports & Fitness'
+  | 'Pets'
+  | 'Family & Kids'
+  | 'Financial - Fees & Charges'
+  | 'Investments'
+  | 'Donations & Charity'
+  | 'Government & Taxes'
+  | 'Credit Card Payment'
+  | 'Refund / Reversal'
+  | 'Bank Credits'
+  | 'True Income'
+  | 'Unknown Incoming'
   | 'Miscellaneous';
 
 interface CategoryRule {
   category: TransactionCategory;
   keywords: string[];
   isIncome?: boolean; // If true, only match positive amounts
+  isExpense?: boolean; // If true, only match negative amounts
 }
 
 // Categorization rules - easily extendable
 const CATEGORY_RULES: CategoryRule[] = [
-  // Income
+  // True Income
   {
-    category: 'Salary & Income',
+    category: 'True Income',
     keywords: [
-      'salary', 'wage', 'payroll', 'deposit', 'income',
-      'payment received', 'transfer from', 'credit interest'
+      'salary', 'wage', 'payroll', 'employer', 'payment received',
+      'payout', 'commission', 'bonus', 'incentive'
     ],
     isIncome: true,
   },
 
-  // Food & Dining
+  // Bank Credits
   {
-    category: 'Food & Dining',
+    category: 'Bank Credits',
     keywords: [
-      'restaurant', 'cafe', 'coffee', 'food', 'dining',
+      'cashback', 'rewards', 'reward points', 'promotional credit',
+      'interest credit', 'bonus credit', 'promo', 'rebate'
+    ],
+    isIncome: true,
+  },
+
+  // Refund / Reversal
+  {
+    category: 'Refund / Reversal',
+    keywords: [
+      'refund', 'reversal', 'cancellation', 'dispute', 'chargeback',
+      'void', 'return', 'reimbursement'
+    ],
+    isIncome: true,
+  },
+
+  // Credit Card Payment
+  {
+    category: 'Credit Card Payment',
+    keywords: [
+      'card payment', 'credit card', 'ccrd', 'cc payment',
+      'transfer to card', 'pay credit card'
+    ],
+    isExpense: true,
+  },
+
+  // Food & Beverage
+  {
+    category: 'Food & Beverage',
+    keywords: [
+      'restaurant', 'cafe', 'coffee', 'dining', 'food court',
       'mcdonald', 'kfc', 'starbucks', 'pizza', 'burger',
-      'grocery', 'supermarket', 'market', 'bakery', 'bar',
-      'uber eats', 'doordash', 'grubhub', 'deliveroo', 'foodpanda', 'grabfood',
-      // Singapore supermarkets & food courts
-      'ntuc', 'fairprice', 'cold storage', 'giant', 'sheng siong',
-      'food court', 'hawker', 'kopitiam', 'toast box', 'ya kun',
-      'old chang kee', 'breadtalk', 'four fingers', 'japanese sushi',
-      // Singapore cafes & restaurants
-      'swensen', 'astons', 'pastamania', 'subway', 'yoshinoya',
-      'ramen', 'sushi', 'dim sum', 'chicken rice'
+      'fast food', 'bar', 'pub', 'bakery', 'bistro',
+      'diner', 'eatery', 'buffet', 'steakhouse', 'sushi',
+      'ramen', 'noodle', 'chicken rice', 'hawker', 'kopitiam'
+    ],
+  },
+
+  // Groceries
+  {
+    category: 'Groceries',
+    keywords: [
+      'supermarket', 'hypermarket', 'grocery', 'market', 'mart',
+      'fresh market', 'produce', 'vegetables', 'fruits'
     ],
   },
 
@@ -54,73 +106,81 @@ const CATEGORY_RULES: CategoryRule[] = [
   {
     category: 'Transport',
     keywords: [
-      'uber', 'lyft', 'taxi', 'cab', 'transport',
-      'gas station', 'fuel', 'petrol', 'parking',
-      'metro', 'subway', 'bus', 'train', 'railway',
-      'shell', 'bp', 'exxon', 'chevron',
-      'car wash', 'toll', 'transit',
-      // Singapore transport
-      'grab', 'gojek', 'comfort', 'citycab', 'trans-cab',
-      'mrt', 'lta', 'ez-link', 'simplygo', 'nets flashpay',
-      'erp', 'parking.sg', 'smrt', 'sbs transit',
-      'esso', 'caltex', 'sinopec', 'shell singapore'
+      'uber', 'lyft', 'grab', 'gojek', 'taxi', 'cab',
+      'bus', 'train', 'metro', 'mrt', 'lrt', 'subway',
+      'transit', 'transport', 'ride', 'fuel', 'petrol',
+      'gas station', 'shell', 'bp', 'esso', 'caltex',
+      'parking', 'toll', 'erp', 'ez-link', 'car rental'
     ],
   },
 
-  // Shopping
+  // Shopping - General Retail
   {
-    category: 'Shopping',
+    category: 'Shopping - General Retail',
     keywords: [
-      'amazon', 'ebay', 'shop', 'store', 'retail',
-      'mall', 'clothing', 'fashion', 'shoes',
-      'electronics', 'best buy', 'target', 'costco',
-      'home depot', 'ikea', 'furniture', 'online purchase',
-      // Singapore shopping
-      'lazada', 'shopee', 'qoo10', 'carousell', 'zalora',
-      'uniqlo', 'h&m', 'zara', 'cotton on', 'charles & keith',
-      'guardian', 'watsons', 'sephora', 'daiso',
-      'courts', 'harvey norman', 'best denki', 'gain city',
-      'popular', 'kinokuniya', 'toys r us',
-      'ikea singapore', 'taobao', 'shein'
+      'department store', 'variety store', 'retail',
+      'convenience store', '7-eleven', 'general store'
     ],
   },
 
-  // Bills & Utilities
+  // Shopping - Fashion & Apparel
   {
-    category: 'Bills & Utilities',
+    category: 'Shopping - Fashion & Apparel',
     keywords: [
-      'electric', 'electricity', 'gas bill', 'water bill',
-      'internet', 'phone bill', 'mobile', 'utility',
-      'insurance', 'rent', 'mortgage', 'lease',
-      'netflix', 'spotify', 'subscription', 'hulu',
-      'disney+', 'apple music', 'youtube premium',
-      // Singapore utilities & telco
-      'sp services', 'spservices', 'pub', 'city gas',
-      'singtel', 'starhub', 'm1', 'circles.life', 'gomo',
-      'viewqwest', 'myrepublic', 'whizcomms',
-      'aia', 'prudential', 'great eastern', 'income',
-      'hdb', 'town council', 'conservancy'
+      'clothing', 'apparel', 'fashion', 'shoes', 'footwear',
+      'bags', 'accessories', 'jewelry', 'watches',
+      'uniqlo', 'h&m', 'zara', 'nike', 'adidas'
     ],
   },
 
-  // Healthcare
+  // Shopping - Electronics & Technology
   {
-    category: 'Healthcare',
+    category: 'Shopping - Electronics & Technology',
     keywords: [
-      'pharmacy', 'hospital', 'clinic', 'doctor',
-      'medical', 'health', 'dental', 'dentist',
-      'cvs', 'walgreens', 'prescription', 'medicine'
+      'electronics', 'computer', 'laptop', 'phone', 'mobile',
+      'tablet', 'appliance', 'tech', 'gadget', 'apple',
+      'samsung', 'sony', 'best buy', 'best denki'
     ],
   },
 
-  // Entertainment
+  // Shopping - Luxury & High-End
   {
-    category: 'Entertainment',
+    category: 'Shopping - Luxury & High-End',
     keywords: [
-      'cinema', 'movie', 'theater', 'concert',
-      'spotify', 'music', 'game', 'gaming',
-      'steam', 'playstation', 'xbox', 'nintendo',
-      'gym', 'fitness', 'sports', 'club'
+      'luxury', 'designer', 'boutique', 'louis vuitton',
+      'gucci', 'prada', 'chanel', 'rolex', 'cartier',
+      'high-end', 'premium brand'
+    ],
+  },
+
+  // Health & Medical
+  {
+    category: 'Health & Medical',
+    keywords: [
+      'hospital', 'clinic', 'doctor', 'medical', 'pharmacy',
+      'medicine', 'prescription', 'health', 'dental', 'dentist',
+      'optician', 'optical', 'healthcare', 'lab test'
+    ],
+  },
+
+  // Beauty & Personal Care
+  {
+    category: 'Beauty & Personal Care',
+    keywords: [
+      'salon', 'hair', 'nail', 'spa', 'massage', 'facial',
+      'beauty', 'cosmetics', 'skincare', 'makeup', 'barber',
+      'manicure', 'pedicure', 'treatment'
+    ],
+  },
+
+  // Entertainment & Leisure
+  {
+    category: 'Entertainment & Leisure',
+    keywords: [
+      'cinema', 'movie', 'theater', 'concert', 'show',
+      'music', 'game', 'gaming', 'entertainment',
+      'amusement', 'theme park', 'ticket', 'event',
+      'nightlife', 'club', 'karaoke', 'bowling'
     ],
   },
 
@@ -128,9 +188,40 @@ const CATEGORY_RULES: CategoryRule[] = [
   {
     category: 'Travel',
     keywords: [
-      'hotel', 'airbnb', 'booking', 'airline',
-      'flight', 'airport', 'travel', 'vacation',
-      'expedia', 'hotels.com', 'hostel', 'resort'
+      'hotel', 'airbnb', 'hostel', 'resort', 'accommodation',
+      'flight', 'airline', 'airport', 'travel', 'vacation',
+      'tour', 'booking', 'expedia', 'agoda', 'tourist'
+    ],
+  },
+
+  // Bills & Utilities
+  {
+    category: 'Bills & Utilities',
+    keywords: [
+      'electric', 'electricity', 'water', 'gas bill', 'utility',
+      'internet', 'broadband', 'wifi', 'phone bill', 'mobile plan',
+      'cable', 'tv subscription'
+    ],
+  },
+
+  // Subscriptions & Digital Services
+  {
+    category: 'Subscriptions & Digital Services',
+    keywords: [
+      'netflix', 'spotify', 'subscription', 'hulu', 'disney',
+      'apple music', 'youtube premium', 'cloud storage',
+      'software', 'saas', 'online service', 'app subscription',
+      'amazon prime', 'membership'
+    ],
+  },
+
+  // Insurance
+  {
+    category: 'Insurance',
+    keywords: [
+      'insurance', 'premium', 'policy', 'coverage',
+      'health insurance', 'life insurance', 'motor insurance',
+      'travel insurance', 'home insurance'
     ],
   },
 
@@ -138,19 +229,88 @@ const CATEGORY_RULES: CategoryRule[] = [
   {
     category: 'Education',
     keywords: [
-      'school', 'university', 'college', 'tuition',
-      'course', 'education', 'book', 'bookstore',
-      'udemy', 'coursera', 'skillshare', 'masterclass'
+      'school', 'university', 'college', 'tuition', 'course',
+      'education', 'learning', 'training', 'class',
+      'udemy', 'coursera', 'skillshare', 'book', 'textbook'
     ],
   },
 
-  // Transfers
+  // Home & Living
   {
-    category: 'Transfers',
+    category: 'Home & Living',
     keywords: [
-      'transfer to', 'transfer from', 'atm withdrawal',
-      'atm deposit', 'cash withdrawal', 'venmo',
-      'paypal', 'zelle', 'cash app', 'bank transfer'
+      'furniture', 'ikea', 'home decor', 'appliance',
+      'home improvement', 'hardware', 'garden', 'plant',
+      'renovation', 'interior', 'bedding', 'kitchenware'
+    ],
+  },
+
+  // Sports & Fitness
+  {
+    category: 'Sports & Fitness',
+    keywords: [
+      'gym', 'fitness', 'sports', 'exercise', 'workout',
+      'yoga', 'pilates', 'athletic', 'running', 'cycling',
+      'swimming', 'training', 'sport equipment'
+    ],
+  },
+
+  // Pets
+  {
+    category: 'Pets',
+    keywords: [
+      'pet', 'veterinary', 'vet', 'animal', 'dog', 'cat',
+      'pet food', 'pet shop', 'grooming', 'pet care'
+    ],
+  },
+
+  // Family & Kids
+  {
+    category: 'Family & Kids',
+    keywords: [
+      'baby', 'kids', 'children', 'toy', 'childcare',
+      'daycare', 'nursery', 'diaper', 'infant', 'toddler',
+      'school supplies', 'stationery'
+    ],
+  },
+
+  // Financial - Fees & Charges
+  {
+    category: 'Financial - Fees & Charges',
+    keywords: [
+      'bank fee', 'atm fee', 'late charge', 'annual fee',
+      'service charge', 'processing fee', 'admin fee',
+      'currency exchange', 'foreign transaction', 'penalty'
+    ],
+  },
+
+  // Investments
+  {
+    category: 'Investments',
+    keywords: [
+      'brokerage', 'stock', 'investment', 'crypto', 'bitcoin',
+      'trading', 'portfolio', 'securities', 'fund', 'etf',
+      'dividend', 'capital'
+    ],
+  },
+
+  // Donations & Charity
+  {
+    category: 'Donations & Charity',
+    keywords: [
+      'donation', 'charity', 'non-profit', 'ngo', 'fundraiser',
+      'temple', 'church', 'mosque', 'religious', 'tithe',
+      'contribute', 'give'
+    ],
+  },
+
+  // Government & Taxes
+  {
+    category: 'Government & Taxes',
+    keywords: [
+      'tax', 'iras', 'government', 'fine', 'penalty',
+      'license', 'permit', 'registration', 'customs',
+      'duty', 'levy'
     ],
   },
 ];
@@ -178,6 +338,11 @@ export function categorizeTransaction(
       continue;
     }
 
+    // If rule specifies expense only, check amount
+    if (rule.isExpense && isPositive) {
+      continue;
+    }
+
     // Check if any keyword matches
     for (const keyword of rule.keywords) {
       if (lowerDescription.includes(keyword.toLowerCase())) {
@@ -186,86 +351,12 @@ export function categorizeTransaction(
     }
   }
 
-  // Default category
-  return 'Miscellaneous';
-}
-
-/**
- * Enhanced categorization with online merchant lookup
- * Uses web search to identify merchant type when keyword matching fails
- * @param description - Transaction description
- * @param amount - Transaction amount
- * @returns The assigned category (with online verification)
- */
-export async function categorizeTransactionEnhanced(
-  description: string,
-  amount: number
-): Promise<TransactionCategory> {
-  // First try keyword-based categorization
-  const keywordCategory = categorizeTransaction(description, amount);
-
-  // If we get a confident match (not Miscellaneous), return it
-  if (keywordCategory !== 'Miscellaneous') {
-    return keywordCategory;
+  // For positive amounts with no match, categorize as Unknown Incoming
+  if (isPositive) {
+    return 'Unknown Incoming';
   }
 
-  // Check cache first
-  const cacheKey = description.toLowerCase().trim();
-  if (merchantCache.has(cacheKey)) {
-    return merchantCache.get(cacheKey)!;
-  }
-
-  // Extract merchant name from description
-  // Remove common patterns: dates, transaction IDs, locations
-  const merchantName = extractMerchantName(description);
-
-  if (!merchantName) {
-    return 'Miscellaneous';
-  }
-
-  // Look up merchant online
-  try {
-    const category = await lookupMerchantCategory(merchantName);
-    merchantCache.set(cacheKey, category);
-    return category;
-  } catch (error) {
-    console.error('Merchant lookup failed:', error);
-    return 'Miscellaneous';
-  }
-}
-
-/**
- * Extract merchant name from transaction description
- * Removes transaction IDs, reference numbers, and extra info
- */
-function extractMerchantName(description: string): string {
-  let clean = description;
-
-  // Remove reference numbers
-  clean = clean.replace(/Ref No\.\s*:\s*\d+/gi, '');
-  clean = clean.replace(/\d{10,}/g, ''); // Remove long numbers (IDs)
-
-  // Remove country/location info at the end
-  clean = clean.replace(/\s+(SINGAPORE|SG|SGP)$/i, '');
-
-  // Remove extra whitespace
-  clean = clean.trim().replace(/\s+/g, ' ');
-
-  // Take first part (usually merchant name)
-  const parts = clean.split(/[\*\/]/);
-  clean = parts[0].trim();
-
-  return clean;
-}
-
-/**
- * Look up merchant category using web search
- * @param merchantName - Name of the merchant
- * @returns Category based on merchant type
- */
-async function lookupMerchantCategory(merchantName: string): Promise<TransactionCategory> {
-  // This would use WebSearch in a server-side context
-  // For now, return Miscellaneous - will be implemented in API route
+  // Default category for expenses
   return 'Miscellaneous';
 }
 
@@ -274,16 +365,34 @@ async function lookupMerchantCategory(merchantName: string): Promise<Transaction
  */
 export function getAllCategories(): TransactionCategory[] {
   return [
-    'Food & Dining',
+    'Food & Beverage',
+    'Groceries',
     'Transport',
-    'Shopping',
-    'Bills & Utilities',
-    'Salary & Income',
-    'Healthcare',
-    'Entertainment',
+    'Shopping - General Retail',
+    'Shopping - Fashion & Apparel',
+    'Shopping - Electronics & Technology',
+    'Shopping - Luxury & High-End',
+    'Health & Medical',
+    'Beauty & Personal Care',
+    'Entertainment & Leisure',
     'Travel',
+    'Bills & Utilities',
+    'Subscriptions & Digital Services',
+    'Insurance',
     'Education',
-    'Transfers',
+    'Home & Living',
+    'Sports & Fitness',
+    'Pets',
+    'Family & Kids',
+    'Financial - Fees & Charges',
+    'Investments',
+    'Donations & Charity',
+    'Government & Taxes',
+    'Credit Card Payment',
+    'Refund / Reversal',
+    'Bank Credits',
+    'True Income',
+    'Unknown Incoming',
     'Miscellaneous',
   ];
 }
@@ -293,16 +402,34 @@ export function getAllCategories(): TransactionCategory[] {
  */
 export function getCategoryColor(category: TransactionCategory | string): string {
   const colors: Record<string, string> = {
-    'Food & Dining': '#FF6B6B',
+    'Food & Beverage': '#FF6B6B',
+    'Groceries': '#FF8C94',
     'Transport': '#4ECDC4',
-    'Shopping': '#45B7D1',
-    'Bills & Utilities': '#FFA07A',
-    'Salary & Income': '#95E1D3',
-    'Healthcare': '#FF8C94',
-    'Entertainment': '#A8E6CF',
+    'Shopping - General Retail': '#45B7D1',
+    'Shopping - Fashion & Apparel': '#A29BFE',
+    'Shopping - Electronics & Technology': '#74B9FF',
+    'Shopping - Luxury & High-End': '#FD79A8',
+    'Health & Medical': '#FF8C94',
+    'Beauty & Personal Care': '#FDCB6E',
+    'Entertainment & Leisure': '#A8E6CF',
     'Travel': '#FFD93D',
-    'Education': '#6C5CE7',
-    'Transfers': '#A29BFE',
+    'Bills & Utilities': '#FFA07A',
+    'Subscriptions & Digital Services': '#DFE6E9',
+    'Insurance': '#6C5CE7',
+    'Education': '#0984E3',
+    'Home & Living': '#00B894',
+    'Sports & Fitness': '#00CEC9',
+    'Pets': '#FFEAA7',
+    'Family & Kids': '#FAB1A0',
+    'Financial - Fees & Charges': '#636E72',
+    'Investments': '#2D3436',
+    'Donations & Charity': '#55EFC4',
+    'Government & Taxes': '#B2BEC3',
+    'Credit Card Payment': '#95A5A6',
+    'Refund / Reversal': '#55EFC4',
+    'Bank Credits': '#74B9FF',
+    'True Income': '#00B894',
+    'Unknown Incoming': '#DFE6E9',
     'Miscellaneous': '#95A5A6',
     // Lowercase mappings for AI-parsed categories
     'dining': '#FF6B6B',
@@ -310,57 +437,9 @@ export function getCategoryColor(category: TransactionCategory | string): string
     'transport': '#4ECDC4',
     'shopping': '#45B7D1',
     'entertainment': '#A8E6CF',
-    'groceries': '#FF6B6B',
+    'groceries': '#FF8C94',
     'other': '#95A5A6',
   };
 
   return colors[category] || colors['Miscellaneous'];
 }
-
-/**
- * Future enhancement: LLM-based categorization
- *
- * To integrate Claude API for better categorization:
- *
- * 1. Install Anthropic SDK:
- *    npm install @anthropic-ai/sdk
- *
- * 2. Add environment variable:
- *    ANTHROPIC_API_KEY=your-key-here
- *
- * 3. Implement LLM categorization:
- *
- * import Anthropic from '@anthropic-ai/sdk';
- *
- * export async function categorizeWithLLM(
- *   description: string,
- *   amount: number
- * ): Promise<TransactionCategory> {
- *   const anthropic = new Anthropic({
- *     apiKey: process.env.ANTHROPIC_API_KEY,
- *   });
- *
- *   const message = await anthropic.messages.create({
- *     model: 'claude-3-haiku-20240307',
- *     max_tokens: 50,
- *     messages: [{
- *       role: 'user',
- *       content: `Categorize this transaction into one of these categories:
- *       ${getAllCategories().join(', ')}
- *
- *       Transaction: ${description}
- *       Amount: ${amount}
- *
- *       Reply with ONLY the category name, nothing else.`
- *     }]
- *   });
- *
- *   const category = message.content[0].text.trim();
- *   return category as TransactionCategory;
- * }
- *
- * 4. Use fallback strategy:
- *    - Try LLM categorization first
- *    - Fall back to keyword-based if LLM fails
- *    - Cache results to minimize API calls
- */
