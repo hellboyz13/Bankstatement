@@ -11,15 +11,17 @@ export interface ParsedStatementMeta {
 
 export interface ParsedTransaction {
   date: string; // YYYY-MM-DD
-  posting_date: string | null;
+  posting_date?: string | null;
   description: string;
   amount: number;
   currency: string | null;
-  type: 'debit' | 'credit' | 'payment' | 'fee' | 'interest' | 'refund' | 'unknown';
+  type?: 'debit' | 'credit' | 'payment' | 'fee' | 'interest' | 'refund' | 'unknown';
   balance?: number | null;
   raw_lines?: string[];
   category?: string;
   category_confidence?: number;
+  fraud_likelihood?: number; // 0.0 to 1.0
+  fraud_reason?: string;
 }
 
 export interface ParsedStatement {

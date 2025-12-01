@@ -6,15 +6,62 @@ const PARSING_SYSTEM_PROMPT = `Extract all transactions from this bank statement
 - Description
 - Amount (negative for debits/payments, positive for credits/deposits)
 - Balance (if shown)
-- Category (groceries, transport, dining, utilities, shopping, entertainment, transfer, salary, or other)
+- Category: Use ONE of these globally-applicable categories (NO country-specific brands):
+  * Food & Beverage (restaurants, cafes, bars, bakeries)
+  * Groceries (supermarkets, grocery stores)
+  * Transport (taxi, public transport, fuel, parking, tolls)
+  * Shopping – General Retail (department stores, convenience stores)
+  * Shopping – Fashion & Apparel (clothing, shoes, bags, jewelry - non-luxury)
+  * Shopping – Electronics & Technology (electronics, computers, phones)
+  * Shopping – Luxury & High-End (designer brands, luxury boutiques)
+  * Health & Medical (hospitals, clinics, pharmacies)
+  * Beauty & Personal Care (salons, spas, cosmetics)
+  * Entertainment & Leisure (cinemas, concerts, games, streaming)
+  * Travel (flights, hotels, tours, travel agencies)
+  * Bills & Utilities (electricity, water, internet, phone bills)
+  * Subscriptions & Digital Services (streaming, cloud, software, apps)
+  * Insurance (life, health, travel, car, home insurance)
+  * Education (schools, courses, tuition)
+  * Home & Living (furniture, home decor, appliances)
+  * Sports & Fitness (gyms, sports equipment)
+  * Pets (pet supplies, vet services)
+  * Family & Kids (baby products, toys, childcare)
+  * Financial – Fees & Charges (bank fees, card fees, ATM fees)
+  * Investments (brokerage, stocks, crypto)
+  * Donations & Charity (non-profits, charitable contributions)
+  * Government & Taxes (taxes, fines, licenses, permits)
+  * Credit Card Payment (payments to reduce card balance)
+  * Refund / Reversal (merchant refunds, cancellations)
+  * Bank Credits (cashback, rewards, promotional credits)
+  * True Income (salary, wages, business income)
+  * Unknown Incoming (unidentified positive transactions)
+  * Miscellaneous / Others (when nothing else fits)
+- Fraud Score (0.0 to 1.0): Assess fraud likelihood based on these patterns:
+  * MICRO-TRANSACTION TESTING: Extremely small amounts (0.01, 0.10, 1.00 or slight variations) - FLAG as 0.7-0.9
+  * RAPID-FIRE TESTING: Multiple micro transactions within minutes/seconds - FLAG as 0.8-0.95
+  * CARD VALIDATION ATTEMPTS: Repeated small charges from same merchant with amount variations - FLAG as 0.75-0.9
+  * DECLINE PATTERNS: Clusters of declined attempts followed by one successful low-value charge - FLAG as 0.85-0.95
+  * UNUSUAL LOCATIONS: Small transactions from foreign merchants/currencies not matching history - FLAG as 0.6-0.8
+  * MERCHANT CATEGORY MISMATCH: MCCs not aligning with typical usage patterns - FLAG as 0.5-0.7
+  * SUSPICIOUS MERCHANT NAMES: Generic, random, or unknown merchant names - FLAG as 0.6-0.8
+  * DIGITAL GOODS TESTING: Low-value digital goods transactions for card validation - FLAG as 0.7-0.85
+  * MULTI-MERCHANT TESTING: Multiple micro attempts across different merchants quickly - FLAG as 0.8-0.95
+  * LATE-NIGHT ACTIVITY: Any of the above occurring at unusual hours (2am-5am) - ADD 0.1-0.15 to score
+  * Unusual large transaction amount for merchant/category - FLAG as 0.5-0.7
+  * High-frequency normal transactions in short period - FLAG as 0.3-0.5
+  * Do NOT flag refunds, card payments, or pending transactions
+  * Only consider completed charges
+- Fraud Reason: Brief explanation (e.g., "Micro-transaction testing pattern", "Rapid card validation attempts", "Late-night foreign merchant testing", "Normal spending pattern")
 
-Also identify: bank name, currency, account type (credit/debit/savings).
+Also identify: bank name, currency, account type (credit_card/current/savings).
 
-Format each transaction as one line: DATE | DESCRIPTION | AMOUNT | BALANCE | CATEGORY
+Format each transaction as one line: DATE | DESCRIPTION | AMOUNT | BALANCE | CATEGORY | FRAUD_SCORE | FRAUD_REASON
 
-Example:
-2024-01-15 | WALMART PURCHASE | -45.50 | 1234.56 | groceries
-2024-01-16 | SALARY DEPOSIT | 3000.00 | 4234.56 | salary`;
+Examples:
+2024-01-15 | Local Restaurant ABC | -45.50 | 1234.56 | Food & Beverage | 0.05 | Normal dining expense
+2024-01-16 | Salary Deposit | 3000.00 | 4234.56 | True Income | 0.0 | Regular income
+2024-01-17 | Refund - Store XYZ | 120.00 | 4354.56 | Refund / Reversal | 0.0 | Legitimate refund
+2024-01-18 | Unknown Merchant Overseas | -850.00 | 3504.56 | Miscellaneous / Others | 0.75 | Large overseas transaction, unusual pattern`;
 
 /**
  * Parse plain text AI response into structured JSON
@@ -45,7 +92,7 @@ function parseTextToJSON(text: string): ClaudePageResponse {
     const parts = line.split('|').map(p => p.trim());
     if (parts.length < 3) continue;
 
-    const [date, description, amountStr, balanceStr, category] = parts;
+    const [date, description, amountStr, balanceStr, category, fraudScoreStr, fraudReason] = parts;
 
     // Validate date format
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
@@ -54,6 +101,7 @@ function parseTextToJSON(text: string): ClaudePageResponse {
     if (isNaN(amount)) continue;
 
     const balance = balanceStr ? parseFloat(balanceStr.replace(/[^0-9.-]/g, '')) : null;
+    const fraudScore = fraudScoreStr ? parseFloat(fraudScoreStr.replace(/[^0-9.]/g, '')) : 0.0;
 
     transactions.push({
       date,
@@ -61,7 +109,9 @@ function parseTextToJSON(text: string): ClaudePageResponse {
       amount,
       currency: currency || 'USD',
       balance: !isNaN(balance!) ? balance : null,
-      category: category || 'other',
+      category: category || 'Miscellaneous / Others',
+      fraud_likelihood: !isNaN(fraudScore) ? Math.min(Math.max(fraudScore, 0), 1) : 0.0,
+      fraud_reason: fraudReason || 'Normal transaction',
     });
   }
 

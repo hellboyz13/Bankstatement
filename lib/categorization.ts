@@ -1,14 +1,15 @@
-// Transaction categorization logic - Global categories (no country-specific brands)
-// Uses keyword-based rules to assign categories to transactions
+// Transaction categorization logic
+// Uses keyword-based rules to assign globally-applicable categories
 
 export type TransactionCategory =
+  // Spending Categories
   | 'Food & Beverage'
   | 'Groceries'
   | 'Transport'
-  | 'Shopping - General Retail'
-  | 'Shopping - Fashion & Apparel'
-  | 'Shopping - Electronics & Technology'
-  | 'Shopping - Luxury & High-End'
+  | 'Shopping – General Retail'
+  | 'Shopping – Fashion & Apparel'
+  | 'Shopping – Electronics & Technology'
+  | 'Shopping – Luxury & High-End'
   | 'Health & Medical'
   | 'Beauty & Personal Care'
   | 'Entertainment & Leisure'
@@ -21,302 +22,301 @@ export type TransactionCategory =
   | 'Sports & Fitness'
   | 'Pets'
   | 'Family & Kids'
-  | 'Financial - Fees & Charges'
+  | 'Financial – Fees & Charges'
   | 'Investments'
   | 'Donations & Charity'
   | 'Government & Taxes'
+  // Credit-related Categories
   | 'Credit Card Payment'
   | 'Refund / Reversal'
   | 'Bank Credits'
   | 'True Income'
   | 'Unknown Incoming'
-  | 'Miscellaneous';
+  | 'Miscellaneous / Others';
 
 interface CategoryRule {
   category: TransactionCategory;
   keywords: string[];
   isIncome?: boolean; // If true, only match positive amounts
-  isExpense?: boolean; // If true, only match negative amounts
+  excludeKeywords?: string[]; // Exclude if these keywords are present
 }
 
-// Categorization rules - easily extendable
+// Global categorization rules - NO country-specific brands or local merchants
 const CATEGORY_RULES: CategoryRule[] = [
-  // True Income
-  {
-    category: 'True Income',
-    keywords: [
-      'salary', 'wage', 'payroll', 'employer', 'payment received',
-      'payout', 'commission', 'bonus', 'incentive'
-    ],
-    isIncome: true,
-  },
-
-  // Bank Credits
-  {
-    category: 'Bank Credits',
-    keywords: [
-      'cashback', 'rewards', 'reward points', 'promotional credit',
-      'interest credit', 'bonus credit', 'promo', 'rebate'
-    ],
-    isIncome: true,
-  },
-
-  // Refund / Reversal
-  {
-    category: 'Refund / Reversal',
-    keywords: [
-      'refund', 'reversal', 'cancellation', 'dispute', 'chargeback',
-      'void', 'return', 'reimbursement'
-    ],
-    isIncome: true,
-  },
-
-  // Credit Card Payment
+  // CREDIT-RELATED CATEGORIES (check these first)
   {
     category: 'Credit Card Payment',
     keywords: [
-      'card payment', 'credit card', 'ccrd', 'cc payment',
-      'transfer to card', 'pay credit card'
+      'card payment', 'credit card payment', 'cc payment', 'payment to card',
+      'card balance payment', 'autopay', 'auto payment', 'minimum payment',
+      'full payment', 'statement payment'
     ],
-    isExpense: true,
+  },
+  {
+    category: 'Refund / Reversal',
+    keywords: [
+      'refund', 'reversal', 'cancelled', 'cancellation', 'dispute resolved',
+      'chargeback', 'void', 'return', 'credit adjustment'
+    ],
+  },
+  {
+    category: 'Bank Credits',
+    keywords: [
+      'cashback', 'cash back', 'reward', 'bonus', 'promotional credit',
+      'interest credit', 'rebate', 'points redemption', 'miles redemption'
+    ],
+    isIncome: true,
+  },
+  {
+    category: 'True Income',
+    keywords: [
+      'salary', 'wage', 'payroll', 'employer', 'business income',
+      'freelance payment', 'commission', 'dividend', 'rental income',
+      'payout', 'p2p transfer in', 'person to person'
+    ],
+    isIncome: true,
   },
 
-  // Food & Beverage
+  // FOOD & BEVERAGE
   {
     category: 'Food & Beverage',
     keywords: [
-      'restaurant', 'cafe', 'coffee', 'dining', 'food court',
-      'mcdonald', 'kfc', 'starbucks', 'pizza', 'burger',
-      'fast food', 'bar', 'pub', 'bakery', 'bistro',
-      'diner', 'eatery', 'buffet', 'steakhouse', 'sushi',
-      'ramen', 'noodle', 'chicken rice', 'hawker', 'kopitiam'
+      'restaurant', 'cafe', 'coffee shop', 'bar', 'pub', 'bistro',
+      'bakery', 'fast food', 'food delivery', 'catering', 'diner',
+      'eatery', 'dining', 'food court', 'canteen', 'cafeteria'
     ],
   },
 
-  // Groceries
+  // GROCERIES
   {
     category: 'Groceries',
     keywords: [
-      'supermarket', 'hypermarket', 'grocery', 'market', 'mart',
-      'fresh market', 'produce', 'vegetables', 'fruits'
+      'supermarket', 'grocery', 'hypermarket', 'fresh market',
+      'produce', 'organic market', 'farmers market', 'food store'
     ],
   },
 
-  // Transport
+  // TRANSPORT
   {
     category: 'Transport',
     keywords: [
-      'uber', 'lyft', 'grab', 'gojek', 'taxi', 'cab',
-      'bus', 'train', 'metro', 'mrt', 'lrt', 'subway',
-      'transit', 'transport', 'ride', 'fuel', 'petrol',
-      'gas station', 'shell', 'bp', 'esso', 'caltex',
-      'parking', 'toll', 'erp', 'ez-link', 'car rental'
+      'taxi', 'cab', 'ride share', 'ride-share', 'car hire',
+      'fuel', 'petrol', 'gas station', 'petrol station', 'diesel',
+      'toll', 'parking', 'car park', 'vehicle service', 'car service',
+      'car rental', 'auto repair', 'mechanic', 'tire', 'tyre',
+      'public transport', 'metro', 'subway', 'bus', 'train', 'railway',
+      'transit', 'transport card', 'transport pass'
     ],
   },
 
-  // Shopping - General Retail
+  // SHOPPING - GENERAL RETAIL
   {
-    category: 'Shopping - General Retail',
+    category: 'Shopping – General Retail',
     keywords: [
-      'department store', 'variety store', 'retail',
-      'convenience store', '7-eleven', 'general store'
+      'department store', 'variety store', 'convenience store',
+      'general store', 'retail shop', 'discount store', 'wholesale'
     ],
   },
 
-  // Shopping - Fashion & Apparel
+  // SHOPPING - FASHION & APPAREL
   {
-    category: 'Shopping - Fashion & Apparel',
+    category: 'Shopping – Fashion & Apparel',
     keywords: [
-      'clothing', 'apparel', 'fashion', 'shoes', 'footwear',
-      'bags', 'accessories', 'jewelry', 'watches',
-      'uniqlo', 'h&m', 'zara', 'nike', 'adidas'
+      'clothing', 'fashion', 'apparel', 'shoes', 'footwear',
+      'bags', 'handbag', 'accessories', 'jewelry', 'jewellery',
+      'boutique', 'tailor', 'alteration'
     ],
+    excludeKeywords: ['luxury', 'designer', 'high-end', 'premium brand'],
   },
 
-  // Shopping - Electronics & Technology
+  // SHOPPING - ELECTRONICS
   {
-    category: 'Shopping - Electronics & Technology',
+    category: 'Shopping – Electronics & Technology',
     keywords: [
-      'electronics', 'computer', 'laptop', 'phone', 'mobile',
-      'tablet', 'appliance', 'tech', 'gadget', 'apple',
-      'samsung', 'sony', 'best buy', 'best denki'
+      'electronics', 'computer', 'laptop', 'mobile phone', 'smartphone',
+      'tablet', 'gadget', 'appliance', 'tech store', 'camera',
+      'audio', 'headphones', 'smart device', 'wearable'
     ],
   },
 
-  // Shopping - Luxury & High-End
+  // SHOPPING - LUXURY
   {
-    category: 'Shopping - Luxury & High-End',
+    category: 'Shopping – Luxury & High-End',
     keywords: [
-      'luxury', 'designer', 'boutique', 'louis vuitton',
-      'gucci', 'prada', 'chanel', 'rolex', 'cartier',
-      'high-end', 'premium brand'
+      'luxury', 'designer', 'high-end', 'premium brand', 'haute couture',
+      'fine jewelry', 'watches', 'luxury boutique', 'exclusive'
     ],
   },
 
-  // Health & Medical
+  // HEALTH & MEDICAL
   {
     category: 'Health & Medical',
     keywords: [
       'hospital', 'clinic', 'doctor', 'medical', 'pharmacy',
-      'medicine', 'prescription', 'health', 'dental', 'dentist',
-      'optician', 'optical', 'healthcare', 'lab test'
+      'medicine', 'prescription', 'dental', 'dentist', 'orthodontist',
+      'optical', 'optician', 'eye care', 'health screening',
+      'lab test', 'medical imaging', 'specialist', 'consultation'
     ],
   },
 
-  // Beauty & Personal Care
+  // BEAUTY & PERSONAL CARE
   {
     category: 'Beauty & Personal Care',
     keywords: [
-      'salon', 'hair', 'nail', 'spa', 'massage', 'facial',
-      'beauty', 'cosmetics', 'skincare', 'makeup', 'barber',
-      'manicure', 'pedicure', 'treatment'
+      'hair salon', 'barber', 'nail salon', 'spa', 'massage',
+      'cosmetics', 'skincare', 'beauty', 'facial', 'manicure',
+      'pedicure', 'beauty treatment', 'wellness center'
     ],
   },
 
-  // Entertainment & Leisure
+  // ENTERTAINMENT & LEISURE
   {
     category: 'Entertainment & Leisure',
     keywords: [
-      'cinema', 'movie', 'theater', 'concert', 'show',
-      'music', 'game', 'gaming', 'entertainment',
-      'amusement', 'theme park', 'ticket', 'event',
-      'nightlife', 'club', 'karaoke', 'bowling'
+      'cinema', 'movie', 'theater', 'theatre', 'concert', 'show',
+      'event', 'festival', 'nightclub', 'karaoke', 'gaming',
+      'game', 'arcade', 'bowling', 'billiards', 'recreation',
+      'theme park', 'amusement park', 'museum', 'gallery',
+      'streaming', 'media subscription'
     ],
   },
 
-  // Travel
+  // TRAVEL
   {
     category: 'Travel',
     keywords: [
-      'hotel', 'airbnb', 'hostel', 'resort', 'accommodation',
-      'flight', 'airline', 'airport', 'travel', 'vacation',
-      'tour', 'booking', 'expedia', 'agoda', 'tourist'
+      'airline', 'flight', 'airport', 'hotel', 'accommodation',
+      'hostel', 'resort', 'travel agency', 'tour', 'tourism',
+      'booking', 'reservation', 'travel insurance', 'attraction',
+      'car rental abroad', 'overseas'
     ],
   },
 
-  // Bills & Utilities
+  // BILLS & UTILITIES
   {
     category: 'Bills & Utilities',
     keywords: [
-      'electric', 'electricity', 'water', 'gas bill', 'utility',
-      'internet', 'broadband', 'wifi', 'phone bill', 'mobile plan',
-      'cable', 'tv subscription'
+      'electricity', 'electric bill', 'power bill', 'water bill',
+      'gas bill', 'utility', 'internet bill', 'broadband',
+      'cable tv', 'tv subscription', 'phone bill', 'mobile plan',
+      'telecom', 'home services'
     ],
   },
 
-  // Subscriptions & Digital Services
+  // SUBSCRIPTIONS & DIGITAL SERVICES
   {
     category: 'Subscriptions & Digital Services',
     keywords: [
-      'netflix', 'spotify', 'subscription', 'hulu', 'disney',
-      'apple music', 'youtube premium', 'cloud storage',
-      'software', 'saas', 'online service', 'app subscription',
-      'amazon prime', 'membership'
+      'subscription', 'streaming service', 'cloud storage',
+      'software subscription', 'app subscription', 'online service',
+      'digital service', 'membership', 'premium account', 'saas'
     ],
   },
 
-  // Insurance
+  // INSURANCE
   {
     category: 'Insurance',
     keywords: [
-      'insurance', 'premium', 'policy', 'coverage',
-      'health insurance', 'life insurance', 'motor insurance',
-      'travel insurance', 'home insurance'
+      'insurance', 'life insurance', 'health insurance', 'medical insurance',
+      'travel insurance', 'car insurance', 'motor insurance', 'home insurance',
+      'property insurance', 'premium payment', 'policy payment'
     ],
   },
 
-  // Education
+  // EDUCATION
   {
     category: 'Education',
     keywords: [
       'school', 'university', 'college', 'tuition', 'course',
-      'education', 'learning', 'training', 'class',
-      'udemy', 'coursera', 'skillshare', 'book', 'textbook'
+      'education', 'training', 'workshop', 'seminar', 'certification',
+      'online course', 'e-learning', 'educational material',
+      'textbook', 'school fees'
     ],
   },
 
-  // Home & Living
+  // HOME & LIVING
   {
     category: 'Home & Living',
     keywords: [
-      'furniture', 'ikea', 'home decor', 'appliance',
-      'home improvement', 'hardware', 'garden', 'plant',
-      'renovation', 'interior', 'bedding', 'kitchenware'
+      'furniture', 'home decor', 'interior', 'appliances',
+      'home improvement', 'hardware store', 'garden', 'plant',
+      'home goods', 'household items', 'kitchenware', 'bedding',
+      'home renovation', 'repair', 'maintenance'
     ],
   },
 
-  // Sports & Fitness
+  // SPORTS & FITNESS
   {
     category: 'Sports & Fitness',
     keywords: [
-      'gym', 'fitness', 'sports', 'exercise', 'workout',
-      'yoga', 'pilates', 'athletic', 'running', 'cycling',
-      'swimming', 'training', 'sport equipment'
+      'gym', 'fitness', 'sports', 'athletic', 'workout',
+      'exercise', 'yoga', 'pilates', 'martial arts', 'dance',
+      'sports equipment', 'outdoor gear', 'sporting goods',
+      'fitness class', 'personal trainer'
     ],
   },
 
-  // Pets
+  // PETS
   {
     category: 'Pets',
     keywords: [
-      'pet', 'veterinary', 'vet', 'animal', 'dog', 'cat',
-      'pet food', 'pet shop', 'grooming', 'pet care'
+      'pet', 'veterinary', 'vet', 'pet shop', 'pet store',
+      'pet food', 'pet supplies', 'pet grooming', 'animal clinic',
+      'pet care', 'pet hospital'
     ],
   },
 
-  // Family & Kids
+  // FAMILY & KIDS
   {
     category: 'Family & Kids',
     keywords: [
-      'baby', 'kids', 'children', 'toy', 'childcare',
-      'daycare', 'nursery', 'diaper', 'infant', 'toddler',
-      'school supplies', 'stationery'
+      'baby', 'infant', 'children', 'kids', 'toy store', 'toys',
+      'childcare', 'daycare', 'nursery', 'baby products',
+      'baby supplies', 'children clothing', 'kids store'
     ],
   },
 
-  // Financial - Fees & Charges
+  // FINANCIAL FEES & CHARGES
   {
-    category: 'Financial - Fees & Charges',
+    category: 'Financial – Fees & Charges',
     keywords: [
-      'bank fee', 'atm fee', 'late charge', 'annual fee',
-      'service charge', 'processing fee', 'admin fee',
-      'currency exchange', 'foreign transaction', 'penalty'
+      'bank fee', 'service fee', 'transaction fee', 'atm fee',
+      'maintenance fee', 'annual fee', 'late fee', 'overdraft fee',
+      'foreign exchange', 'currency exchange', 'processing fee',
+      'admin fee', 'card fee'
     ],
   },
 
-  // Investments
+  // INVESTMENTS
   {
     category: 'Investments',
     keywords: [
-      'brokerage', 'stock', 'investment', 'crypto', 'bitcoin',
-      'trading', 'portfolio', 'securities', 'fund', 'etf',
-      'dividend', 'capital'
+      'brokerage', 'stock', 'shares', 'investment', 'crypto',
+      'cryptocurrency', 'exchange', 'trading', 'mutual fund',
+      'etf', 'bonds', 'securities', 'portfolio'
     ],
   },
 
-  // Donations & Charity
+  // DONATIONS & CHARITY
   {
     category: 'Donations & Charity',
     keywords: [
-      'donation', 'charity', 'non-profit', 'ngo', 'fundraiser',
-      'temple', 'church', 'mosque', 'religious', 'tithe',
-      'contribute', 'give'
+      'donation', 'charity', 'non-profit', 'ngo', 'fundraising',
+      'contribution', 'religious donation', 'church', 'temple',
+      'mosque', 'charitable', 'cause'
     ],
   },
 
-  // Government & Taxes
+  // GOVERNMENT & TAXES
   {
     category: 'Government & Taxes',
     keywords: [
-      'tax', 'iras', 'government', 'fine', 'penalty',
-      'license', 'permit', 'registration', 'customs',
-      'duty', 'levy'
+      'tax', 'income tax', 'property tax', 'government fee',
+      'license', 'permit', 'fine', 'penalty', 'court fee',
+      'registration', 'government service', 'public service fee'
     ],
   },
 ];
-
-// Cache for merchant lookups to avoid repeated API calls
-const merchantCache = new Map<string, TransactionCategory>();
 
 /**
  * Categorizes a transaction based on its description and amount
@@ -331,16 +331,21 @@ export function categorizeTransaction(
   const lowerDescription = description.toLowerCase();
   const isPositive = amount > 0;
 
-  // Check each rule
+  // Check each rule in order (credit-related categories are first)
   for (const rule of CATEGORY_RULES) {
     // If rule specifies income only, check amount
     if (rule.isIncome && !isPositive) {
       continue;
     }
 
-    // If rule specifies expense only, check amount
-    if (rule.isExpense && isPositive) {
-      continue;
+    // Check if any exclude keyword matches
+    if (rule.excludeKeywords) {
+      const hasExcluded = rule.excludeKeywords.some(keyword =>
+        lowerDescription.includes(keyword.toLowerCase())
+      );
+      if (hasExcluded) {
+        continue;
+      }
     }
 
     // Check if any keyword matches
@@ -351,13 +356,13 @@ export function categorizeTransaction(
     }
   }
 
-  // For positive amounts with no match, categorize as Unknown Incoming
+  // For positive amounts that didn't match any income category
   if (isPositive) {
     return 'Unknown Incoming';
   }
 
-  // Default category for expenses
-  return 'Miscellaneous';
+  // Default category for negative amounts
+  return 'Miscellaneous / Others';
 }
 
 /**
@@ -368,10 +373,10 @@ export function getAllCategories(): TransactionCategory[] {
     'Food & Beverage',
     'Groceries',
     'Transport',
-    'Shopping - General Retail',
-    'Shopping - Fashion & Apparel',
-    'Shopping - Electronics & Technology',
-    'Shopping - Luxury & High-End',
+    'Shopping – General Retail',
+    'Shopping – Fashion & Apparel',
+    'Shopping – Electronics & Technology',
+    'Shopping – Luxury & High-End',
     'Health & Medical',
     'Beauty & Personal Care',
     'Entertainment & Leisure',
@@ -384,7 +389,7 @@ export function getAllCategories(): TransactionCategory[] {
     'Sports & Fitness',
     'Pets',
     'Family & Kids',
-    'Financial - Fees & Charges',
+    'Financial – Fees & Charges',
     'Investments',
     'Donations & Charity',
     'Government & Taxes',
@@ -393,7 +398,7 @@ export function getAllCategories(): TransactionCategory[] {
     'Bank Credits',
     'True Income',
     'Unknown Incoming',
-    'Miscellaneous',
+    'Miscellaneous / Others',
   ];
 }
 
@@ -402,44 +407,48 @@ export function getAllCategories(): TransactionCategory[] {
  */
 export function getCategoryColor(category: TransactionCategory | string): string {
   const colors: Record<string, string> = {
+    // Spending categories
     'Food & Beverage': '#FF6B6B',
-    'Groceries': '#FF8C94',
+    'Groceries': '#FF8787',
     'Transport': '#4ECDC4',
-    'Shopping - General Retail': '#45B7D1',
-    'Shopping - Fashion & Apparel': '#A29BFE',
-    'Shopping - Electronics & Technology': '#74B9FF',
-    'Shopping - Luxury & High-End': '#FD79A8',
+    'Shopping – General Retail': '#45B7D1',
+    'Shopping – Fashion & Apparel': '#96CEB4',
+    'Shopping – Electronics & Technology': '#5DADE2',
+    'Shopping – Luxury & High-End': '#AF7AC5',
     'Health & Medical': '#FF8C94',
-    'Beauty & Personal Care': '#FDCB6E',
+    'Beauty & Personal Care': '#FFB6C1',
     'Entertainment & Leisure': '#A8E6CF',
     'Travel': '#FFD93D',
     'Bills & Utilities': '#FFA07A',
-    'Subscriptions & Digital Services': '#DFE6E9',
-    'Insurance': '#6C5CE7',
-    'Education': '#0984E3',
-    'Home & Living': '#00B894',
-    'Sports & Fitness': '#00CEC9',
-    'Pets': '#FFEAA7',
-    'Family & Kids': '#FAB1A0',
-    'Financial - Fees & Charges': '#636E72',
-    'Investments': '#2D3436',
-    'Donations & Charity': '#55EFC4',
-    'Government & Taxes': '#B2BEC3',
-    'Credit Card Payment': '#95A5A6',
-    'Refund / Reversal': '#55EFC4',
-    'Bank Credits': '#74B9FF',
-    'True Income': '#00B894',
-    'Unknown Incoming': '#DFE6E9',
-    'Miscellaneous': '#95A5A6',
-    // Lowercase mappings for AI-parsed categories
+    'Subscriptions & Digital Services': '#DDA0DD',
+    'Insurance': '#F4A460',
+    'Education': '#6C5CE7',
+    'Home & Living': '#98D8C8',
+    'Sports & Fitness': '#74B9FF',
+    'Pets': '#FDCB6E',
+    'Family & Kids': '#FFA8A8',
+    'Financial – Fees & Charges': '#95A5A6',
+    'Investments': '#6C5B7B',
+    'Donations & Charity': '#A8DADC',
+    'Government & Taxes': '#778899',
+    // Credit-related categories
+    'Credit Card Payment': '#95E1D3',
+    'Refund / Reversal': '#81C784',
+    'Bank Credits': '#66BB6A',
+    'True Income': '#4CAF50',
+    'Unknown Incoming': '#AED581',
+    'Miscellaneous / Others': '#95A5A6',
+    // Lowercase/alternative mappings for backward compatibility
+    'food & dining': '#FF6B6B',
     'dining': '#FF6B6B',
     'food': '#FF6B6B',
     'transport': '#4ECDC4',
     'shopping': '#45B7D1',
     'entertainment': '#A8E6CF',
-    'groceries': '#FF8C94',
+    'groceries': '#FF8787',
     'other': '#95A5A6',
+    'miscellaneous': '#95A5A6',
   };
 
-  return colors[category] || colors['Miscellaneous'];
+  return colors[category] || colors['Miscellaneous / Others'];
 }
