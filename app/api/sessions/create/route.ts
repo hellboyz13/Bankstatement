@@ -16,9 +16,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[API /sessions/create] Calling createSession...');
+    // Check if this is a demo user (localhost or Google demo)
+    const isDemoUser = userId === 'demo-user-localhost' || userId.startsWith('google_user_');
 
-    // Create session in Supabase
+    if (isDemoUser) {
+      console.log('[API /sessions/create] Demo user detected - saving locally');
+
+      // For demo users, create a mock session object to return
+      // The actual saving happens on the client side to localStorage
+      const mockSession = {
+        id: `session_${Date.now()}`,
+        user_id: userId,
+        filename,
+        transaction_count: transactions.length,
+        statement_start_date: statementStartDate || null,
+        statement_end_date: statementEndDate || null,
+        transactions_data: transactions,
+        upload_date: new Date().toISOString(),
+        modified_date: new Date().toISOString(),
+      };
+
+      return NextResponse.json({
+        success: true,
+        session: mockSession,
+        isDemo: true,
+      });
+    }
+
+    console.log('[API /sessions/create] Calling createSession for real user...');
+
+    // Create session in Supabase for real users
     const session = await createSession(
       userId,
       filename,
